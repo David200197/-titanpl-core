@@ -1,127 +1,94 @@
 # @titanpl/core
+The official Core Standard Library for Titan Planet - a high-performance JavaScript runtime extension.
 
-The official Core Standard Library for **Titan Planet** - a high-performance JavaScript runtime.
+## Overview
+`@titanpl/core` provides essential standard library modules for Titan applications, bridging high-performance Rust native implementations with an easy-to-use JavaScript API.
 
 ## Installation
-
 ```bash
 npm install @titanpl/core
 ```
 
-## Overview
-
-`@titanpl/core` provides essential standard library modules for Titan applications:
-
-| Module | Description |
-|--------|-------------|
-| `fs` | File system operations (read, write, mkdir, exists, stat, remove) |
-| `path` | Path manipulation utilities (join, resolve, extname, dirname, basename) |
-| `crypto` | Cryptographic functions (hash, randomBytes, uuid, base64) |
-| `os` | Operating system information (platform, cpus, memory) |
-| `net` | Network utilities (DNS resolve, IP address) |
-| `proc` | Process information (pid, uptime) |
-| `time` | Time utilities (sleep, now, timestamp) |
-| `url` | URL parsing and manipulation |
-
 ## Usage
-
-Once installed, the extension automatically attaches to the Titan runtime:
+The extension automatically attaches to the Titan runtime. You can access it via `t.core` or the `t` global object alias.
 
 ```javascript
-// Access via t.core
-const content = t.core.fs.readFile("config.json");
-const joined = t.core.path.join("foo", "bar", "baz.txt");
-const uuid = t.core.crypto.uuid();
+// Access via t.core (Recommended)
+const { fs, crypto, os } = t.core;
 
-// Or via individual modules on t
-const exists = t.fs.exists("./data");
-const now = t.time.now();
+// Read a file
+const content = fs.readFile("config.json");
+
+// Generate UUID
+const id = crypto.uuid();
 ```
 
 ## API Reference
 
-### fs (File System)
+### `fs` (File System)
+Perform synchronous file system operations.
+- `fs.readFile(path: string): string` - Read file content as UTF-8 string.
+- `fs.writeFile(path: string, content: string): void` - Write string content to file.
+- `fs.exists(path: string): boolean` - Check if path exists.
+- `fs.mkdir(path: string): void` - Create a directory (recursive).
+- `fs.remove(path: string): void` - Remove file or directory.
+- `fs.readdir(path: string): string[]` - List directory contents.
+- `fs.stat(path: string): object` - Get file statistics (`{ type: "file"|"directory", size: number }`).
 
+### `path` (Path Manipulation)
+Utilities for handling file paths.
+- `path.join(...parts: string[]): string` - Join path segments.
+- `path.resolve(...parts: string[]): string` - Resolve path to absolute.
+- `path.dirname(path: string): string` - Get directory name.
+- `path.basename(path: string): string` - Get base file name.
+- `path.extname(path: string): string` - Get file extension.
+
+### `crypto` (Cryptography)
+Cryptographic utilities using native Rust implementations.
+- `crypto.hash(algo: string, data: string): string` - Hash data. Supported algos: `sha256`, `sha512`, `md5`.
+- `crypto.randomBytes(size: number): string` - Generate random bytes as hex string.
+- `crypto.uuid(): string` - Generate a UUID v4.
+- `crypto.compare(hash: string, target: string): boolean` - Constant-time comparison.
+
+**Example:**
 ```javascript
-t.fs.readFile(path)          // Read file contents as string
-t.fs.writeFile(path, content) // Write string to file
-t.fs.readdir(path)           // List directory contents
-t.fs.mkdir(path)             // Create directory
-t.fs.exists(path)            // Check if path exists
-t.fs.stat(path)              // Get file/directory stats
-t.fs.remove(path)            // Remove file or directory
+const hash = t.core.crypto.hash("sha256", "hii");
+const valid = t.core.crypto.compare(
+    "a1a3b09875f9e9acade5623e1cca680009a6c9e0452489931cfa5b0041f4d290", 
+    hash
+);
 ```
 
-### path
+### `os` (Operating System)
+Get system information.
+- `os.platform(): string` - OS platform (e.g., `linux`, `windows`).
+- `os.cpus(): number` - Number of CPU cores.
+- `os.totalMemory(): number` - Total system memory in bytes.
+- `os.freeMemory(): number` - Free system memory in bytes.
+- `os.tmpdir(): string` - Temporary directory path.
 
-```javascript
-t.path.join(...parts)        // Join path segments
-t.path.resolve(...parts)     // Resolve to absolute path
-t.path.extname(path)         // Get file extension
-t.path.dirname(path)         // Get directory name
-t.path.basename(path)        // Get file name
-```
+### `net` (Network)
+Network utilities.
+- `net.resolveDNS(hostname: string): string[]` - Resolve hostname to IP addresses.
+- `net.ip(): string` - Get local IP address.
 
-### crypto
+### `proc` (Process)
+Current process information.
+- `proc.pid(): number` - Process ID.
+- `proc.uptime(): number` - System uptime in seconds.
 
-```javascript
-t.crypto.hash(algo, data)    // Hash data (sha256, sha512, etc.)
-t.crypto.randomBytes(size)   // Generate random bytes
-t.crypto.uuid()              // Generate UUID v4
-t.crypto.base64.encode(str)  // Base64 encode
-t.crypto.base64.decode(str)  // Base64 decode
-t.crypto.compare(a, b)       // Constant-time string comparison
-```
+### `time` (Time)
+Time utilities.
+- `time.sleep(ms: number): void` - Sleep for specified milliseconds.
+- `time.now(): number` - Current timestamp (ms).
+- `time.timestamp(): string` - Current ISO timestamp.
 
-### os
-
-```javascript
-t.os.platform()              // Get OS platform
-t.os.cpus()                  // Get CPU count
-t.os.totalMemory()           // Get total memory
-t.os.freeMemory()            // Get free memory
-t.os.tmpdir()                // Get temp directory path
-```
-
-### net
-
-```javascript
-t.net.resolveDNS(hostname)   // Resolve DNS
-t.net.ip()                   // Get local IP address
-```
-
-### proc
-
-```javascript
-t.proc.pid()                 // Get process ID
-t.proc.uptime()              // Get process uptime
-```
-
-### time
-
-```javascript
-t.time.sleep(ms)             // Sleep for milliseconds
-t.time.now()                 // Get current timestamp (ms)
-t.time.timestamp()           // Get ISO timestamp string
-```
-
-### url
-
-```javascript
-t.url.parse(urlString)       // Parse URL string
-t.url.format(urlObject)      // Format URL object to string
-new t.url.SearchParams(query) // Parse query string
-```
+### `url` (URL)
+URL parsing and manipulation.
+- `url.parse(urlString: string): URLObject` - Parse URL string.
+- `url.format(urlObject: object): string` - Format URL object.
+- `new url.SearchParams(query: string|object)` - Handle query strings.
 
 ## Native Bindings
+This extension includes native Rust bindings for high-performance operations. The native library is automatically loaded by the Titan Runtime.
 
-This extension includes native Rust bindings for high-performance file system and OS operations. The native library is automatically loaded when available.
-
-## Requirements
-
-- Titan SDK >= 0.1.7
-- Node.js >= 18.0.0 (for development)
-
-## License
-
-ISC © ezetgalaxy

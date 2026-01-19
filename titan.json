@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "native": {
-    "path": "native/target/release/titan_core_native.dll",
+    "path": "native/target/release/titan_core.dll",
     "functions": {
       "fs_read_file": {
         "symbol": "fs_read_file",

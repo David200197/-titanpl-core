@@ -1,32 +1,34 @@
 // Titan Core Library
 // Provides standard library features using native bindings.
 
-// Native bindings are expected to be available globally or via t.native
-// adjusting based on typical Titan behavior.
-// We bind them to local variables for cleaner usage.
+// Native bindings are loaded by the runtime into t["@titanpl/core"]
+// We capture them here before defining our high-level API.
+const natives = t["@titanpl/core"] || {};
 
-const native_fs_read_file = globalThis.fs_read_file;
-const native_fs_write_file = globalThis.fs_write_file;
-const native_fs_readdir = globalThis.fs_readdir;
-const native_fs_mkdir = globalThis.fs_mkdir;
-const native_fs_exists = globalThis.fs_exists;
-const native_fs_stat = globalThis.fs_stat;
-const native_fs_remove = globalThis.fs_remove;
-const native_path_cwd = globalThis.path_cwd;
-const native_crypto_hash = globalThis.crypto_hash;
-const native_crypto_random_bytes = globalThis.crypto_random_bytes;
-const native_crypto_uuid = globalThis.crypto_uuid;
-const native_os_info = globalThis.os_info;
-const native_net_resolve = globalThis.net_resolve;
-const native_net_ip = globalThis.net_ip;
-const native_proc_info = globalThis.proc_info;
-const native_time_sleep = globalThis.time_sleep;
+const native_fs_read_file = natives.fs_read_file;
+const native_fs_write_file = natives.fs_write_file;
+const native_fs_readdir = natives.fs_readdir;
+const native_fs_mkdir = natives.fs_mkdir;
+const native_fs_exists = natives.fs_exists;
+const native_fs_stat = natives.fs_stat;
+const native_fs_remove = natives.fs_remove;
+const native_path_cwd = natives.path_cwd;
+const native_crypto_hash = natives.crypto_hash;
+const native_crypto_random_bytes = natives.crypto_random_bytes;
+const native_crypto_uuid = natives.crypto_uuid;
+const native_os_info = natives.os_info;
+const native_net_resolve = natives.net_resolve;
+const native_net_ip = natives.net_ip;
+const native_proc_info = natives.proc_info;
+const native_time_sleep = natives.time_sleep;
 
 // --- FS ---
 const fs = {
     readFile: (path) => {
         if (!native_fs_read_file) throw new Error("Native fs_read_file not found");
-        return native_fs_read_file(path);
+        const res = native_fs_read_file(path);
+        if (res.startsWith("ERROR:")) throw new Error(res);
+        return res;
     },
     writeFile: (path, content) => {
         if (!native_fs_write_file) throw new Error("Native fs_write_file not found");
@@ -34,7 +36,13 @@ const fs = {
     },
     readdir: (path) => {
         if (!native_fs_readdir) throw new Error("Native fs_readdir not found");
-        return JSON.parse(native_fs_readdir(path));
+        const res = native_fs_readdir(path);
+        // Runtime might return empty string on error or failures, or "[]"
+        try {
+            return JSON.parse(res);
+        } catch (e) {
+            return [];
+        }
     },
     mkdir: (path) => {
         if (!native_fs_mkdir) throw new Error("Native fs_mkdir not found");
@@ -46,7 +54,12 @@ const fs = {
     },
     stat: (path) => {
         if (!native_fs_stat) throw new Error("Native fs_stat not found");
-        return JSON.parse(native_fs_stat(path));
+        const res = native_fs_stat(path);
+        try {
+            return JSON.parse(res);
+        } catch (e) {
+            return {};
+        }
     },
     remove: (path) => {
         if (!native_fs_remove) throw new Error("Native fs_remove not found");
@@ -58,10 +71,15 @@ const fs = {
 // Basic implementation for POSIX-like paths (Titan mostly runs on servers/containers)
 const path = {
     join: (...args) => {
+        // Normalize to forward slashes for internal join logic, or keep native?
+        // Let's normalize to / for consistency unless user requests native path separator
         return args
             .map((part, i) => {
-                if (i === 0) return part.trim().replace(/[\/]*$/g, '');
-                return part.trim().replace(/(^[\/]*|[\/]*$)/g, '');
+                if (!part) return '';
+                // Replace backslashes with forward slashes for easier joining
+                let p = part.replace(/\\/g, '/');
+                if (i === 0) return p.trim().replace(/[\/]*$/g, '');
+                return p.trim().replace(/(^[\/]*|[\/]*$)/g, '');
             })
             .filter(x => x.length)
             .join('/');
@@ -71,8 +89,16 @@ const path = {
         for (let arg of args) {
             resolved = path.join(resolved, arg);
         }
-        if (!resolved.startsWith('/') && native_path_cwd) {
-            resolved = path.join(native_path_cwd(), resolved);
+        if (!resolved.startsWith('/')) {
+            // If windows, check for drive letter C:\ or D:\ or start with \
+            const isWindowsAbs = /^[a-zA-Z]:\\/.test(resolved) || resolved.startsWith('\\');
+            if (!isWindowsAbs && native_path_cwd) {
+                // native_path_cwd returns result of std::env::current_dir()
+                const cwd = native_path_cwd();
+                if (cwd) {
+                    resolved = path.join(cwd, resolved);
+                }
+            }
         }
         return resolved;
     },
@@ -90,9 +116,9 @@ const path = {
 
 // --- Crypto ---
 const crypto = {
-    hash: (algo, data) => native_crypto_hash(algo, data),
-    randomBytes: (size) => native_crypto_random_bytes(size),
-    uuid: () => native_crypto_uuid(),
+    hash: (algo, data) => native_crypto_hash ? native_crypto_hash(algo, data) : "",
+    randomBytes: (size) => native_crypto_random_bytes ? native_crypto_random_bytes(size) : "",
+    uuid: () => native_crypto_uuid ? native_crypto_uuid() : "",
     base64: {
         encode: (str) => btoa(str), // Boa supports btoa/atob
         decode: (str) => atob(str),
@@ -111,18 +137,22 @@ const crypto = {
 // --- OS ---
 const os = {
     platform: () => {
+        if (!native_os_info) return "unknown";
         const info = JSON.parse(native_os_info());
         return info.platform;
     },
     cpus: () => {
+        if (!native_os_info) return 1;
         const info = JSON.parse(native_os_info());
         return info.cpus;
     },
     totalMemory: () => {
+        if (!native_os_info) return 0;
         const info = JSON.parse(native_os_info());
         return info.totalMemory;
     },
     freeMemory: () => {
+        if (!native_os_info) return 0;
         const info = JSON.parse(native_os_info());
         return info.freeMemory;
     },
@@ -131,8 +161,11 @@ const os = {
 
 // --- Net ---
 const net = {
-    resolveDNS: (hostname) => JSON.parse(native_net_resolve(hostname)),
-    ip: () => native_net_ip(),
+    resolveDNS: (hostname) => {
+        if (!native_net_resolve) return [];
+        return JSON.parse(native_net_resolve(hostname));
+    },
+    ip: () => native_net_ip ? native_net_ip() : "127.0.0.1",
     ping: (host) => {
         // Mock ping or simple verify
         return true;
@@ -143,10 +176,12 @@ const net = {
 // Memoize static info if needed, but here we call native
 const proc = {
     pid: () => {
+        if (!native_proc_info) return 0;
         const info = JSON.parse(native_proc_info());
         return info.pid;
     },
     uptime: () => {
+        if (!native_proc_info) return 0;
         const info = JSON.parse(native_proc_info());
         return info.uptime;
     },
@@ -158,7 +193,13 @@ const proc = {
 
 // --- Time ---
 const time = {
-    sleep: (ms) => native_time_sleep(ms),
+    sleep: (ms) => {
+        if (native_time_sleep) {
+            native_time_sleep(ms);
+        } else {
+            console.log("[TitanCore] Warn: native_time_sleep missing");
+        }
+    },
     now: () => Date.now(),
     timestamp: () => new Date().toISOString()
 };

@@ -1,49 +1,36 @@
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 use std::fs;
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
 use serde_json::json;
 use sha2::{Sha256, Sha512, Digest};
+use uuid::Uuid; // Uuid v4
 use md5::Md5;
-use rand::Rng;
-use uuid::Uuid;
-
-
-// Helper to convert C string to Rust string
-fn ptr_to_string(ptr: *const c_char) -> String {
-    unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() }
-}
-
-// Helper to convert Rust string to C string pointer
-fn string_to_ptr(s: String) -> *const c_char {
-    CString::new(s).unwrap().into_raw()
-}
+use rand::Rng; // For random_bytes
 
 // --- FS ---
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_read_file(path: *const c_char) -> *const c_char {
-    let path_str = ptr_to_string(path);
-    match fs::read_to_string(&path_str) {
-        Ok(content) => string_to_ptr(content),
-        Err(_) => string_to_ptr("".to_string()), // TODO: Better error handling?
+#[no_mangle]
+pub extern "C" fn fs_read_file(path: String) -> String {
+    println!("[Native] fs_read_file called with: '{}'", path);
+    match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(e) => {
+            println!("[Native] fs_read_file error: {}", e);
+            format!("ERROR: {}", e)
+        },
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_write_file(path: *const c_char, content: *const c_char) {
-    let path_str = ptr_to_string(path);
-    let content_str = ptr_to_string(content);
-    let _ = fs::write(path_str, content_str);
+#[no_mangle]
+pub extern "C" fn fs_write_file(path: String, content: String) {
+    let _ = fs::write(path, content);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_readdir(path: *const c_char) -> *const c_char {
-    let path_str = ptr_to_string(path);
+#[no_mangle]
+pub extern "C" fn fs_readdir(path: String) -> String {
     let mut entries = Vec::new();
-    if let Ok(read_dir) = fs::read_dir(path_str) {
+    if let Ok(read_dir) = fs::read_dir(path) {
         for entry in read_dir {
             if let Ok(entry) = entry {
                 if let Ok(name) = entry.file_name().into_string() {
@@ -52,104 +39,96 @@ pub extern "C" fn fs_readdir(path: *const c_char) -> *const c_char {
             }
         }
     }
-    string_to_ptr(serde_json::to_string(&entries).unwrap())
+    serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string())
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_mkdir(path: *const c_char) {
-    let path_str = ptr_to_string(path);
-    let _ = fs::create_dir_all(path_str);
+#[no_mangle]
+pub extern "C" fn fs_mkdir(path: String) {
+    let _ = fs::create_dir_all(path);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_exists(path: *const c_char) -> bool {
-    let path_str = ptr_to_string(path);
-    Path::new(&path_str).exists()
+#[no_mangle]
+pub extern "C" fn fs_exists(path: String) -> bool {
+    Path::new(&path).exists()
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_stat(path: *const c_char) -> *const c_char {
-    let path_str = ptr_to_string(path);
-    if let Ok(meta) = fs::metadata(&path_str) {
+#[no_mangle]
+pub extern "C" fn fs_stat(path: String) -> String {
+    if let Ok(meta) = fs::metadata(&path) {
         let file_type = if meta.is_dir() { "directory" } else { "file" };
         let size = meta.len();
         let json = json!({
             "type": file_type,
             "size": size
         });
-        string_to_ptr(json.to_string())
+        json.to_string()
     } else {
-        string_to_ptr("{}".to_string())
+        "{}".to_string()
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn fs_remove(path: *const c_char) {
-    let path_str = ptr_to_string(path);
-    if let Ok(meta) = fs::metadata(&path_str) {
+#[no_mangle]
+pub extern "C" fn fs_remove(path: String) {
+    if let Ok(meta) = fs::metadata(&path) {
         if meta.is_dir() {
-            let _ = fs::remove_dir_all(path_str);
+            let _ = fs::remove_dir_all(path);
         } else {
-            let _ = fs::remove_file(path_str);
+            let _ = fs::remove_file(path);
         }
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn path_cwd() -> *const c_char {
+#[no_mangle]
+pub extern "C" fn path_cwd() -> String {
     if let Ok(cwd) = std::env::current_dir() {
-        string_to_ptr(cwd.to_string_lossy().into_owned())
+        cwd.to_string_lossy().into_owned()
     } else {
-        string_to_ptr("".to_string())
+        "".to_string()
     }
 }
 
 // --- Crypto ---
 
-#[unsafe(no_mangle)]
-pub extern "C" fn crypto_hash(algo: *const c_char, data: *const c_char) -> *const c_char {
-    let algo_str = ptr_to_string(algo);
-    let data_str = ptr_to_string(data);
-    let res = match algo_str.as_str() {
+#[no_mangle]
+pub extern "C" fn crypto_hash(algo: String, data: String) -> String {
+    match algo.as_str() {
         "sha256" => {
             let mut hasher = Sha256::new();
-            hasher.update(data_str);
+            hasher.update(data);
             format!("{:x}", hasher.finalize())
         },
         "sha512" => {
             let mut hasher = Sha512::new();
-            hasher.update(data_str);
+            hasher.update(data);
             format!("{:x}", hasher.finalize())
         },
         "md5" => {
             let mut hasher = Md5::new();
-            hasher.update(data_str);
+            hasher.update(data);
             format!("{:x}", hasher.finalize())
         },
         _ => "".to_string()
-    };
-    string_to_ptr(res)
+    }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn crypto_random_bytes(size: f64) -> *const c_char {
+#[no_mangle]
+pub extern "C" fn crypto_random_bytes(size: f64) -> String {
     let size = size as usize;
     let mut rng = rand::thread_rng();
     let mut bytes = vec![0u8; size];
     rng.fill(&mut bytes[..]);
-    // Return hex string of bytes
-    string_to_ptr(hex::encode(bytes))
+    hex::encode(bytes)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn crypto_uuid() -> *const c_char {
-    string_to_ptr(Uuid::new_v4().to_string())
+#[no_mangle]
+pub extern "C" fn crypto_uuid() -> String {
+    Uuid::new_v4().to_string()
 }
 
 // --- OS ---
 
-#[unsafe(no_mangle)]
-pub extern "C" fn os_info() -> *const c_char {
+#[no_mangle]
+pub extern "C" fn os_info() -> String {
     let info = sys_info::os_type().unwrap_or("unknown".to_string());
     let release = sys_info::os_release().unwrap_or("unknown".to_string());
     let cpus = sys_info::cpu_num().unwrap_or(1);
@@ -162,51 +141,53 @@ pub extern "C" fn os_info() -> *const c_char {
         "totalMemory": mem.total,
         "freeMemory": mem.free
     });
-    string_to_ptr(json.to_string())
+    json.to_string()
 }
 
 // --- Net ---
 
-#[unsafe(no_mangle)]
-pub extern "C" fn net_resolve(hostname: *const c_char) -> *const c_char {
-    let hostname_str = ptr_to_string(hostname);
-    match dns_lookup::lookup_host(&hostname_str) {
+#[no_mangle]
+pub extern "C" fn net_resolve(hostname: String) -> String {
+    match dns_lookup::lookup_host(&hostname) {
         Ok(ips) => {
             let ips_str: Vec<String> = ips.iter().map(|ip| ip.to_string()).collect();
-            string_to_ptr(serde_json::to_string(&ips_str).unwrap())
+            serde_json::to_string(&ips_str).unwrap_or("[]".to_string())
         },
-        Err(_) => string_to_ptr("[]".to_string())
+        Err(_) => "[]".to_string()
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn net_ip() -> *const c_char {
+#[no_mangle]
+pub extern "C" fn net_ip() -> String {
     if let Ok(my_local_ip) = local_ip_address::local_ip() {
-        string_to_ptr(my_local_ip.to_string())
+        my_local_ip.to_string()
     } else {
-        string_to_ptr("127.0.0.1".to_string())
+        "127.0.0.1".to_string()
     }
 }
 
 // --- Proc ---
 
-#[unsafe(no_mangle)]
-pub extern "C" fn proc_info() -> *const c_char {
+#[no_mangle]
+pub extern "C" fn proc_info() -> String {
     let pid = std::process::id();
-    // Uptime is not straightforward in std, sys-info might have it?
-    // sys_info::boottime() is available.
-    let uptime = 0; // sys_info::boottime not reliable on Windows
+    #[cfg(windows)]
+    let uptime = 0;
+    #[cfg(not(windows))]
+    let uptime = sys_info::boottime().map(|t| t.tv_sec).unwrap_or(0);
 
     let json = json!({
         "pid": pid,
         "uptime": uptime
     });
-    string_to_ptr(json.to_string())
+    json.to_string()
 }
 
 // --- Time ---
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn time_sleep(ms: f64) {
+    println!("[Native] Sleeping for {} ms", ms);
     thread::sleep(Duration::from_millis(ms as u64));
+    println!("[Native] Woke up");
 }
