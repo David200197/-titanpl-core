@@ -1,4 +1,3 @@
-declare var t: any;
 declare var fs_read_file: any;
 declare var fs_write_file: any;
 declare var fs_readdir: any;
