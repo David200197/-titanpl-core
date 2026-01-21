@@ -1,6 +1,10 @@
 import { readFileSync, existsSync, writeFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { platform as _platform } from 'os';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const platform = _platform(); // 'win32', 'linux', 'darwin'
 const titanConfigPath = resolve(__dirname, 'titan.json');
 
