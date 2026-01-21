@@ -2,48 +2,49 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { platform as _platform } from 'os';
+import { spawnSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const platform = _platform(); // 'win32', 'linux', 'darwin'
+const platform = _platform();
 const titanConfigPath = resolve(__dirname, 'titan.json');
 
 console.log(`Configuring titan.json for platform: ${platform}`);
 
+// 1. Platform-specific output file name
+let libFile = "";
+if (platform === "win32") {
+    libFile = "titan_core.dll";
+} else if (platform === "darwin") {
+    libFile = "libtitan_core.dylib";
+} else {
+    libFile = "libtitan_core.so";
+}
+
+const nativeDir = resolve(__dirname, "native");
+const expectedBinary = resolve(nativeDir, "target/release", libFile);
+
+// 2. Build if binary missing
+if (!existsSync(expectedBinary)) {
+    console.log(`Native binary missing.`);
+}
+
+// 3. Update titan.json
 try {
-    const content = readFileSync(titanConfigPath, 'utf8');
+    const content = readFileSync(titanConfigPath, "utf8");
     const titanConfig = JSON.parse(content);
 
-    let libPath = "";
-    if (platform === 'win32') {
-        libPath = "native/target/release/titan_core.dll";
-    } else if (platform === 'darwin') {
-        libPath = "native/target/release/libtitan_core.dylib";
-    } else {
-        // Assume linux/unix defaults for anything else
-        libPath = "native/target/release/libtitan_core.so";
-    }
-
-    const fullPath = resolve(__dirname, libPath);
-    if (!existsSync(fullPath)) {
-        console.warn(`Warning: Native binary not found at ${fullPath}. Valid binaries for this platform must be built or provided.`);
-    }
-
-    // Check if configuration actually needs changing to avoid unnecessary writes
-    if (titanConfig.native && titanConfig.native.path === libPath) {
-        console.log(`titan.json is already configured for ${platform}.`);
-        process.exit(0);
-    }
+    const relativeLibPath = `native/target/release/${libFile}`;
 
     if (!titanConfig.native) {
         titanConfig.native = {};
     }
 
-    titanConfig.native.path = libPath;
+    titanConfig.native.path = relativeLibPath;
 
     writeFileSync(titanConfigPath, JSON.stringify(titanConfig, null, 2));
-    console.log(`Successfully updated titan.json native path to: ${libPath}`);
+    console.log(`Updated titan.json to use native binary: ${relativeLibPath}`);
 } catch (error) {
-    console.error("Error configuring titan.json:", error);
+    console.error("Error updating titan.json:", error);
     process.exit(1);
 }
