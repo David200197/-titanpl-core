@@ -111,6 +111,9 @@ function local_utf8_decode(bytes) {
 // Native bindings are loaded by the runtime into t["@titanpl/core"]
 const natives = t["@titanpl/core"] || {};
 
+console.log("[TitanCore] Available natives:", Object.keys(natives));
+
+
 
 // Native Function bindings
 const native_fs_read_file = natives.fs_read_file;
