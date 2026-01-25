@@ -341,81 +341,53 @@ const buffer = {
 };
 
 // --- Local Storage ---
-/** Persistent Local Storage */
+/** High-performance in-memory Local Storage (backed by native RwLock<HashMap>) */
 const ls = {
     get: (key) => {
-        try {
-            const content = fs.readFile("titan_storage.json");
-            const db = JSON.parse(content || "{}");
-            return db[key] || null;
-        } catch (e) { return null; }
+        if (!native_ls_get) throw new Error("Native ls_get not found");
+        return native_ls_get(key);
     },
     set: (key, value) => {
-        try {
-            let db = {};
-            try { db = JSON.parse(fs.readFile("titan_storage.json") || "{}"); } catch (e) { }
-            db[key] = String(value);
-            fs.writeFile("titan_storage.json", JSON.stringify(db));
-        } catch (e) { }
+        if (!native_ls_set) throw new Error("Native ls_set not found");
+        native_ls_set(key, String(value));
     },
     remove: (key) => {
-        try {
-            let db = {};
-            try { db = JSON.parse(fs.readFile("titan_storage.json") || "{}"); } catch (e) { }
-            delete db[key];
-            fs.writeFile("titan_storage.json", JSON.stringify(db));
-        } catch (e) { }
+        if (!native_ls_remove) throw new Error("Native ls_remove not found");
+        native_ls_remove(key);
     },
     clear: () => {
-        try {
-            fs.writeFile("titan_storage.json", "{}");
-        } catch (e) { }
+        if (!native_ls_clear) throw new Error("Native ls_clear not found");
+        native_ls_clear();
     },
     keys: () => {
+        if (!native_ls_keys) throw new Error("Native ls_keys not found");
+        const result = native_ls_keys();
         try {
-            let db = JSON.parse(fs.readFile("titan_storage.json") || "{}");
-            return Object.keys(db);
-        } catch (e) { return []; }
+            return JSON.parse(result);
+        } catch (e) {
+            return [];
+        }
     }
 };
 
 // --- Sessions ---
-/** Server-side Session Management */
+/** High-performance in-memory Session Management (backed by native RwLock<HashMap>) */
 const session = {
     get: (sessionId, key) => {
-        try {
-            const content = fs.readFile("titan_sessions.json");
-            const db = JSON.parse(content || "{}");
-            const sessionData = db[sessionId] || {};
-            return sessionData[key] || null;
-        } catch (e) { return null; }
+        if (!native_session_get) throw new Error("Native session_get not found");
+        return native_session_get(sessionId, key);
     },
     set: (sessionId, key, value) => {
-        try {
-            let db = {};
-            try { db = JSON.parse(fs.readFile("titan_sessions.json") || "{}"); } catch (e) { }
-            if (!db[sessionId]) db[sessionId] = {};
-            db[sessionId][key] = String(value);
-            fs.writeFile("titan_sessions.json", JSON.stringify(db));
-        } catch (e) { }
+        if (!native_session_set) throw new Error("Native session_set not found");
+        native_session_set(sessionId, key, String(value));
     },
     delete: (sessionId, key) => {
-        try {
-            let db = {};
-            try { db = JSON.parse(fs.readFile("titan_sessions.json") || "{}"); } catch (e) { }
-            if (db[sessionId]) {
-                delete db[sessionId][key];
-                fs.writeFile("titan_sessions.json", JSON.stringify(db));
-            }
-        } catch (e) { }
+        if (!native_session_delete) throw new Error("Native session_delete not found");
+        native_session_delete(sessionId, key);
     },
     clear: (sessionId) => {
-        try {
-            let db = {};
-            try { db = JSON.parse(fs.readFile("titan_sessions.json") || "{}"); } catch (e) { }
-            delete db[sessionId];
-            fs.writeFile("titan_sessions.json", JSON.stringify(db));
-        } catch (e) { }
+        if (!native_session_clear) throw new Error("Native session_clear not found");
+        native_session_clear(sessionId);
     }
 };
 
