@@ -281,6 +281,55 @@ pub extern "C" fn proc_info() -> *mut c_char {
     string_to_ptr(info.to_string())
 }
 
+#[no_mangle]
+pub extern "C" fn proc_run(command: *const c_char, args_json: *const c_char) -> *mut c_char {
+    let cmd = ptr_to_string(command);
+    let args_str = ptr_to_string(args_json);
+    
+    let args: Vec<String> = serde_json::from_str(&args_str).unwrap_or_default();
+    
+    match std::process::Command::new(cmd).args(args).spawn() {
+        Ok(child) => {
+             let res = serde_json::json!({ "pid": child.id() });
+             string_to_ptr(res.to_string())
+        },
+        Err(e) => string_to_ptr(format!("ERROR: {}", e)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn proc_kill(pid: f64) -> bool {
+    let pid_int = pid as usize;
+    use sysinfo::{System, Pid};
+    
+    let s = System::new_all();
+    let pid = Pid::from(pid_int);
+    if let Some(process) = s.process(pid) {
+        process.kill()
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn proc_list() -> *mut c_char {
+    use sysinfo::{System};
+    let mut s = System::new_all();
+    s.refresh_processes();
+    
+    let processes: Vec<serde_json::Value> = s.processes().iter().map(|(pid, process)| {
+        serde_json::json!({
+            "pid": pid.as_u32(), 
+            "name": process.name(),
+            "cmd": process.cmd(),
+            "memory": process.memory(),
+            "cpu": process.cpu_usage(),
+        })
+    }).collect();
+    
+    string_to_ptr(serde_json::to_string(&processes).unwrap_or("[]".to_string()))
+}
+
 // --- Time ---
 #[no_mangle]
 pub extern "C" fn time_sleep(ms: f64) {

@@ -137,6 +137,9 @@ const native_os_info = natives.os_info;
 const native_net_resolve = natives.net_resolve;
 const native_net_ip = natives.net_ip;
 const native_proc_info = natives.proc_info;
+const native_proc_run = natives.proc_run;
+const native_proc_kill = natives.proc_kill;
+const native_proc_list = natives.proc_list;
 const native_time_sleep = natives.time_sleep;
 
 const native_ls_get = natives.ls_get;
@@ -551,7 +554,26 @@ const proc = {
         const info = JSON.parse(native_proc_info());
         return info.uptime;
     },
-    memory: () => ({})
+    memory: () => ({}),
+    run: (command, args = []) => {
+        if (!native_proc_run) throw new Error("Native proc_run not found");
+        const res = native_proc_run(command, JSON.stringify(args));
+        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res);
+        try {
+            return JSON.parse(res);
+        } catch (e) { return {}; }
+    },
+    kill: (pid) => {
+        if (!native_proc_kill) return false;
+        return native_proc_kill(pid);
+    },
+    list: () => {
+        if (!native_proc_list) return [];
+        const res = native_proc_list();
+        try {
+            return JSON.parse(res);
+        } catch (e) { return []; }
+    }
 };
 
 // --- Time ---

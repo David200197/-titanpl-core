@@ -13,4 +13,7 @@ declare var os_info: any;
 declare var net_resolve: any;
 declare var net_ip: any;
 declare var proc_info: any;
+declare var proc_run: any;
+declare var proc_kill: any;
+declare var proc_list: any;
 declare var time_sleep: any;

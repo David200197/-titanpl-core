@@ -106,9 +106,12 @@ Network utilities.
 - `net.ip(): string` - Get local IP address.
 
 ### `proc` (Process)
-Current process information.
+Process management and system information.
 - `proc.pid(): number` - Process ID.
 - `proc.uptime(): number` - System uptime in seconds.
+- `proc.run(command: string, args?: string[]): { pid: number }` - Spawn a new process.
+- `proc.kill(pid: number): boolean` - Kill a process by PID.
+- `proc.list(): object[]` - List all running processes (`{ pid, name, cmd, memory, cpu }`).
 
 ### `time` (Time)
 Time utilities.

@@ -6,9 +6,19 @@ declare global {
     namespace Titan {
         interface Runtime {
             /**
-             * @titanpl/core Extension - Titan Core Standard Library
+             * # @titanpl/core
+             * The official Core Standard Library for Titan Planet - a high-performance JavaScript runtime extension.
              * 
-             * High-performance runtime APIs for file I/O, cryptography, networking, and data storage.
+             * ## Overview
+             * `@titanpl/core` provides essential standard library modules for Titan applications, bridging high-performance Rust native implementations with an easy-to-use JavaScript API.
+             * 
+             * ## Usage
+             * The extension automatically attaches to the Titan runtime. You can access it via `t.core` or the `t` global object alias.
+             * 
+             * ```javascript
+             * // Access via t.core (Recommended)
+             * const { fs, crypto, os } = t.core;
+             * ```
              */
             "@titanpl/core": TitanCore.Core;
 
@@ -18,66 +28,100 @@ declare global {
             "titan-core": TitanCore.Core;
 
             /**
-             * File System API - Native file operations
+             * ### `fs` (File System)
+             * Perform synchronous file system operations using high-performance native bindings.
+             * 
+             * @example
+             * ```javascript
+             * const content = t.fs.readFile("config.json");
+             * ```
              */
             fs: TitanCore.FileSystem;
 
             /**
-             * Path API - Cross-platform path manipulation
+             * ### `path` (Path Manipulation)
+             * Utilities for handling file paths across different operating systems.
              */
             path: TitanCore.Path;
 
             /**
-             * Cryptography API - Hashing, encryption, random generation
+             * ### `crypto` (Cryptography)
+             * Cryptographic utilities using native Rust implementations.
+             * 
+             * @example
+             * ```javascript
+             * const hash = t.crypto.hash("sha256", "hii");
+             * ```
              */
             crypto: TitanCore.Crypto;
 
             /**
-             * Operating System API - System information
-             */
+            * Operating System API - Deep system introspection.
+            * 
+            * Access CPU counts, memory status, and platform-specific environment details.
+            * 
+            * @use Multi-threaded scaling, resource monitoring, and platform-aware logic.
+            */
             os: TitanCore.OS;
 
             /**
-             * Network API - DNS resolution and IP utilities
-             */
+            * Network API - Low-level networking and DNS utilities.
+            * 
+            * Resolve hostnames and perform network health checks with sub-millisecond precision.
+            * 
+            * @use Discovering service IP addresses, verifying network connectivity.
+            */
             net: TitanCore.Net;
 
             /**
-             * Process API - Runtime process information
-             */
+            * Process API - Runtime execution control and monitoring.
+            * 
+            * Monitor the current Titan process, its PID, uptime, and memory heap footprint.
+            * 
+            * @use Health checks, performance profiling, and process identification.
+            */
             proc: TitanCore.Process;
 
             /**
-             * Time API - Time utilities and delays
-             */
+            * Time API - High-resolution timing and scheduling.
+            * 
+            * Precise timestamps and blocking delays for synchronized operations.
+            * 
+            * @use Benchmarking actions, adding retry delays, and generation of ISO timestamps.
+            * @suggestion Use `t.time.sleep` sparingly as it pauses the execution isolate.
+            */
             time: TitanCore.Time;
 
             /**
-             * URL API - URL parsing and manipulation
-             */
+            * URL API - Robust URL parsing and construction.
+            * 
+            * compliant URL parser that breaks down protocols, hostnames, and query parameters.
+            * 
+            * @use Parsing incoming request URLs, building outgoing fetch URLs.
+            */
             url: TitanCore.URLModule;
 
             /**
-             * Buffer API - Binary data encoding/decoding
-             */
+            * Buffer API - High-performance binary data handling.
+            * 
+            * Optimized for Base64 coding, Hex conversion, and UTF-8 byte stream management.
+            * 
+            * @use Handling file uploads, processing binary payloads, and hashing non-string data.
+            */
             buffer: TitanCore.BufferModule;
 
             /**
-             * Local Storage API - High-performance in-memory key-value store
-             * 
-             * **Performance:** ~156,250 reads/sec, ~89,286 writes/sec
-             * 
-             * - ⚡ RwLock<HashMap> implementation (~0.006ms per read)
-             * - 🚀 ~1000x faster than file-based storage
-             * - 💾 In-memory only (data lost on restart)
-             * - 🔄 Perfect for request-scoped state sharing
-             * 
-             * @example
-             * ```typescript
-             * t.ls.set('user:123', 'John Doe');
-             * const name = t.ls.get('user:123'); // "John Doe"
-             * ```
-             */
+            * Local Storage API - High-performance in-memory key-value store.
+            * 
+            * **Performance:** ~150,000+ operations/sec.
+            * 
+            * - ⚡ RwLock<HashMap> implementation (~0.006ms per read)
+            * - 🚀 ~1000x faster than file-based storage
+            * - 💾 In-memory only (volatile)
+            * 
+            * @use Perfect for caching frequently accessed data within a single process.
+            * @suggestion Use for metadata, temporary counters, and cross-action shared state.
+            */
             ls: TitanCore.LocalStorage;
 
             /**
@@ -86,42 +130,30 @@ declare global {
             localStorage: TitanCore.LocalStorage;
 
             /**
-             * Session API - High-performance session state management
-             * 
-             * **Performance:** ~156,250 reads/sec, ~89,286 writes/sec
-             * 
-             * - ⚡ RwLock<HashMap> implementation
-             * - 🔐 Session-scoped key-value storage
-             * - 💨 Sub-millisecond operations
-             * 
-             * @example
-             * ```typescript
-             * t.session.set('sess_abc', 'cart', '[1,2,3]');
-             * const cart = t.session.get('sess_abc', 'cart');
-             * ```
-             */
+            * Session API - High-performance session management.
+            * 
+            * Isolate data per-user session with sub-millisecond access times.
+            * 
+            * @use Shopping carts, user preferences, and authentication tokens.
+            * @suggestion Store JSON strings and parse them on retrieval for complex objects.
+            */
             session: TitanCore.Session;
 
             /**
-             * Cookie API - HTTP cookie parsing and setting
-             */
+            * Cookie API - Standard-compliant HTTP cookie management.
+            * 
+            * Easily set, retrieve, and delete cookies with support for HTTPOnly and SameSite.
+            * 
+            * @use Tracking user sessions, storing client-side preferences.
+            * @suggestion Always use `httpOnly: true` for sensitive session cookies.
+            */
             cookies: TitanCore.Cookies;
 
             /**
-             * Response API - Advanced HTTP Response Management
-             * 
-             * Enables full control over HTTP responses including:
-             * - Custom status codes
-             * - Custom headers
-             * - Content-Type management
-             * - Redirects
-             * 
-             * @example
-             * ```typescript
-             * return t.response.text("Hello World");
-             * return t.response.json({ ok: true }, { status: 201 });
-             * ```
-             */
+            * ### **`response` (HTTP Response Builder)**
+            * Utilities for constructing HTTP responses.
+            * All response methods return a standardized ResponseObject consumed by the Titan Rust HTTP server.
+            */
             response: TitanCore.ResponseModule;
 
             /**
@@ -130,6 +162,27 @@ declare global {
             core: TitanCore.Core;
         }
     }
+
+    /**
+     * # Drift - Orchestration Engine
+     * 
+     * Revolutionary system for high-performance asynchronous operations using a **Deterministic Replay-based Suspension** model.
+     * 
+     * ## Mechanism
+     * Drift utilizes a suspension model similar to **Algebraic Effects**. When a `drift()` operation is encountered, 
+     * the runtime suspends the isolate, offloads the task to the background Tokio executor, and frees the isolate 
+     * to handle other requests. Upon completion, the code is efficiently **re-played** with the result injected.
+     * 
+     * @param promise - The promise or expression to drift.
+     * @returns The resolved value of the input promise.
+     * 
+     * @example
+     * ```javascript
+     * const resp = drift(t.fetch("http://api.titan.com"));
+     * console.log(resp.body);
+     * ```
+     */
+    function drift<T>(promise: Promise<T> | T): T;
 
     /**
      * Titan Core Global Namespace
@@ -161,50 +214,46 @@ declare global {
          */
         interface FileSystem {
             /**
-             * Reads file content as UTF-8 string
-             * @param path - Absolute or relative file path
-             * @returns File content as string
-             * @throws Error if file doesn't exist or cannot be read
+             * Read file content as UTF-8 string.
+             * @param path File path.
              */
             readFile(path: string): string;
 
             /**
-             * Writes content to file (creates if doesn't exist)
-             * @param path - Target file path
-             * @param content - Content to write
+             * Write string content to file.
+             * @param path Target file path.
+             * @param content String content to write.
              */
             writeFile(path: string, content: string): void;
 
             /**
-             * Reads directory contents
-             * @param path - Directory path
-             * @returns Array of file/directory names
+             * List directory contents.
+             * @param path Directory path.
              */
             readdir(path: string): string[];
 
             /**
-             * Creates directory recursively (like `mkdir -p`)
-             * @param path - Directory path to create
+             * Create a directory (recursive).
+             * @param path Directory path to create.
              */
             mkdir(path: string): void;
 
             /**
-             * Checks if path exists
-             * @param path - Path to check
-             * @returns true if exists, false otherwise
+             * Check if path exists.
+             * @param path Path to check.
              */
             exists(path: string): boolean;
 
             /**
-             * Returns file/directory statistics
-             * @param path - Path to stat
-             * @returns Stats object with size, type, and modification time
+             * Get file statistics.
+             * @param path Path to stat.
+             * @returns Statistics object `{ type: "file" | "directory", size: number }`.
              */
             stat(path: string): Stats;
 
             /**
-             * Removes file or directory (recursive for directories)
-             * @param path - Path to remove
+             * Remove file or directory (recursive).
+             * @param path Path to remove.
              */
             remove(path: string): void;
         }
@@ -276,83 +325,54 @@ declare global {
          */
         interface Crypto {
             /**
-             * Computes hash of data using specified algorithm
-             * @param algorithm - Hash algorithm: "sha256", "sha512", "md5"
-             * @param data - Data to hash
-             * @returns Hex-encoded hash string
-             * @example
-             * ```typescript
-             * const hash = t.crypto.hash('sha256', 'hello world');
-             * ```
+             * Hash data.
+             * @param algorithm Algorithm to use: `sha256`, `sha512`, `md5`.
+             * @param data Data to hash.
              */
             hash(algorithm: 'sha256' | 'sha512' | 'md5', data: string): string;
 
             /**
-             * Generates cryptographically secure random bytes
-             * @param size - Number of bytes to generate
-             * @returns Hex-encoded random string
+             * Generate random bytes as hex string.
+             * @param size Number of bytes.
              */
             randomBytes(size: number): string;
 
             /**
-             * Generates a UUID v4 string
-             * @returns UUID string (e.g., "550e8400-e29b-41d4-a716-446655440000")
+             * Generate a UUID v4.
              */
             uuid(): string;
 
             /**
-             * Base64 encoding/decoding utilities
+             * Constant-time comparison to prevent timing attacks.
+             * @param hash The reference hash.
+             * @param target The hash to compare against.
              */
-            base64: {
-                /**
-                 * Encodes string to Base64
-                 * @param str - String to encode
-                 * @returns Base64-encoded string
-                 */
-                encode(str: string): string;
-
-                /**
-                 * Decodes Base64 string
-                 * @param str - Base64-encoded string
-                 * @returns Decoded string
-                 */
-                decode(str: string): string;
-            };
+            compare(hash: string, target: string): boolean;
 
             /**
-             * Encrypts data using AES-256-GCM
-             * @param algorithm - Encryption algorithm (e.g., "aes-256-gcm")
-             * @param key - Encryption key (32 bytes for AES-256)
-             * @param plaintext - Data to encrypt
-             * @returns Base64-encoded ciphertext
+             * AES-256-GCM Encrypt.
+             * @param algorithm Encryption algorithm.
+             * @param key 32-byte key.
+             * @param plaintext Data to encrypt.
+             * @returns Base64 encoded ciphertext.
              */
             encrypt(algorithm: string, key: string, plaintext: string): string;
 
             /**
-             * Decrypts data using AES-256-GCM
-             * @param algorithm - Decryption algorithm (e.g., "aes-256-gcm")
-             * @param key - Decryption key (must match encryption key)
-             * @param ciphertext - Base64-encoded ciphertext
-             * @returns Decrypted plaintext
+             * AES-256-GCM Decrypt.
+             * @param algorithm Decryption algorithm.
+             * @param key Matching 32-byte key.
+             * @param ciphertext Base64 encoded ciphertext.
              */
             decrypt(algorithm: string, key: string, ciphertext: string): string;
 
             /**
-             * Computes HMAC (Hash-based Message Authentication Code)
-             * @param algorithm - HMAC algorithm: "hmac-sha256", "hmac-sha512"
-             * @param key - Secret key
-             * @param message - Message to authenticate
-             * @returns Hex-encoded HMAC
+             * HMAC calculation.
+             * @param algorithm `hmac-sha256` or `hmac-sha512`.
+             * @param key Secret key.
+             * @param message Message to sign.
              */
             hashKeyed(algorithm: 'hmac-sha256' | 'hmac-sha512', key: string, message: string): string;
-
-            /**
-             * Constant-time string comparison (prevents timing attacks)
-             * @param a - First string
-             * @param b - Second string
-             * @returns true if strings are equal
-             */
-            compare(a: string, b: string): boolean;
         }
 
         // ==================== OS ====================
@@ -361,34 +381,15 @@ declare global {
          * Operating System API - System information
          */
         interface OS {
-            /**
-             * Returns the operating system platform
-             * @returns Platform name (e.g., "windows", "linux", "darwin")
-             */
+            /** OS platform (e.g., `linux`, `windows`). */
             platform(): string;
-
-            /**
-             * Returns the number of logical CPU cores
-             * @returns Number of CPUs
-             */
+            /** Number of CPU cores. */
             cpus(): number;
-
-            /**
-             * Returns total system memory in bytes
-             * @returns Total memory in bytes
-             */
+            /** Total system memory in bytes. */
             totalMemory(): number;
-
-            /**
-             * Returns free system memory in bytes
-             * @returns Free memory in bytes
-             */
+            /** Free system memory in bytes. */
             freeMemory(): number;
-
-            /**
-             * Returns the system temporary directory path
-             * @returns Temp directory path
-             */
+            /** Temporary directory path. */
             tmpdir(): string;
         }
 
@@ -398,24 +399,11 @@ declare global {
          * Network API - DNS resolution and IP utilities
          */
         interface Net {
-            /**
-             * Resolves hostname to IP addresses
-             * @param hostname - Domain name to resolve
-             * @returns Array of IP addresses
-             */
+            /** Resolve hostname to IP addresses. */
             resolveDNS(hostname: string): string[];
-
-            /**
-             * Returns the local machine's IP address
-             * @returns Local IP address
-             */
+            /** Get local IP address. */
             ip(): string;
-
-            /**
-             * Pings a host (currently always returns true)
-             * @param host - Host to ping
-             * @returns Always true
-             */
+            /** Ping (not fully implemented). */
             ping(host: string): boolean;
         }
 
@@ -425,22 +413,11 @@ declare global {
          * Process API - Runtime process information
          */
         interface Process {
-            /**
-             * Returns the current process ID
-             * @returns Process ID (PID)
-             */
+            /** Process ID. */
             pid(): number;
-
-            /**
-             * Returns the process uptime in seconds
-             * @returns Uptime in seconds
-             */
+            /** System uptime in seconds. */
             uptime(): number;
-
-            /**
-             * Returns memory usage statistics
-             * @returns Memory usage object
-             */
+            /** Memory usage statistics. */
             memory(): Record<string, any>;
         }
 
@@ -450,23 +427,11 @@ declare global {
          * Time API - Time utilities and delays
          */
         interface Time {
-            /**
-             * Pauses execution for the specified duration
-             * @param ms - Milliseconds to sleep
-             * @warning This blocks the V8 isolate - use sparingly!
-             */
+            /** Sleep for specified milliseconds. */
             sleep(ms: number): void;
-
-            /**
-             * Returns the current timestamp in milliseconds
-             * @returns Milliseconds since Unix epoch
-             */
+            /** Current timestamp (ms). */
             now(): number;
-
-            /**
-             * Returns the current time as an ISO 8601 string
-             * @returns ISO timestamp (e.g., "2024-01-25T10:30:00.000Z")
-             */
+            /** Current ISO timestamp. */
             timestamp(): string;
         }
 
@@ -572,46 +537,17 @@ declare global {
          * Buffer API - Binary data encoding and decoding
          */
         interface BufferModule {
-            /**
-             * Decodes Base64 string to bytes
-             * @param str - Base64-encoded string
-             * @returns Uint8Array of decoded bytes
-             */
+            /** Decode Base64 string. */
             fromBase64(str: string): Uint8Array;
-
-            /**
-             * Encodes bytes or string to Base64
-             * @param bytes - Uint8Array or string to encode
-             * @returns Base64-encoded string
-             */
+            /** Encode to Base64. */
             toBase64(bytes: Uint8Array | string): string;
-
-            /**
-             * Decodes hex string to bytes
-             * @param str - Hex-encoded string
-             * @returns Uint8Array of decoded bytes
-             */
+            /** Decode Hex string. */
             fromHex(str: string): Uint8Array;
-
-            /**
-             * Encodes bytes or string to hex
-             * @param bytes - Uint8Array or string to encode
-             * @returns Hex-encoded string
-             */
+            /** Encode to Hex. */
             toHex(bytes: Uint8Array | string): string;
-
-            /**
-             * Encodes UTF-8 string to bytes
-             * @param str - String to encode
-             * @returns Uint8Array of UTF-8 bytes
-             */
+            /** Encode UTF-8 string to bytes. */
             fromUtf8(str: string): Uint8Array;
-
-            /**
-             * Decodes UTF-8 bytes to string
-             * @param bytes - Uint8Array of UTF-8 bytes
-             * @returns Decoded string
-             */
+            /** Decode bytes to UTF-8 string. */
             toUtf8(bytes: Uint8Array): string;
         }
 
@@ -655,75 +591,15 @@ declare global {
          * ```
          */
         interface LocalStorage {
-            /**
-             * Retrieves a value from local storage
-             * 
-             * **Performance:** ~0.0064ms per operation (~156,250 ops/sec)
-             * 
-             * @param key - Storage key
-             * @returns Stored value or null if not found
-             * 
-             * @example
-             * ```typescript
-             * const value = t.ls.get('myKey');
-             * if (value !== null) {
-             *   console.log('Found:', value);
-             * }
-             * ```
-             */
+            /** Get value. */
             get(key: string): string | null;
-
-            /**
-             * Stores a value in local storage
-             * 
-             * **Performance:** ~0.0112ms per operation (~89,286 ops/sec)
-             * 
-             * @param key - Storage key
-             * @param value - Value to store (will be converted to string)
-             * 
-             * @example
-             * ```typescript
-             * t.ls.set('counter', '42');
-             * t.ls.set('config', JSON.stringify({ theme: 'dark' }));
-             * ```
-             */
+            /** Set value. */
             set(key: string, value: string): void;
-
-            /**
-             * Removes a specific key from local storage
-             * 
-             * @param key - Key to remove
-             * 
-             * @example
-             * ```typescript
-             * t.ls.remove('tempData');
-             * ```
-             */
+            /** Remove key. */
             remove(key: string): void;
-
-            /**
-             * Clears all data from local storage
-             * 
-             * @warning This removes ALL keys - use with caution!
-             * 
-             * @example
-             * ```typescript
-             * t.ls.clear(); // All data removed
-             * ```
-             */
+            /** Clear all storage. */
             clear(): void;
-
-            /**
-             * Returns all keys currently in local storage
-             * 
-             * @returns Array of all storage keys
-             * 
-             * @example
-             * ```typescript
-             * const keys = t.ls.keys();
-             * console.log('Stored keys:', keys); // ['user:1', 'config', ...]
-             * ```
-             */
+            /** List all keys. */
             keys(): string[];
         }
 
@@ -756,47 +632,13 @@ declare global {
          * ```
          */
         interface Session {
-            /**
-             * Retrieves a value from a session
-             * 
-             * **Performance:** ~0.0064ms per operation
-             * 
-             * @param sessionId - Unique session identifier
-             * @param key - Key within the session
-             * @returns Stored value or null if not found
-             */
+            /** Get session value. */
             get(sessionId: string, key: string): string | null;
-
-            /**
-             * Stores a value in a session
-             * 
-             * **Performance:** ~0.0112ms per operation
-             * 
-             * @param sessionId - Unique session identifier
-             * @param key - Key within the session
-             * @param value - Value to store
-             */
+            /** Set session value. */
             set(sessionId: string, key: string, value: string): void;
-
-            /**
-             * Deletes a specific key from a session
-             * 
-             * @param sessionId - Session identifier
-             * @param key - Key to delete
-             */
+            /** Delete session value. */
             delete(sessionId: string, key: string): void;
-
-            /**
-             * Clears all data for a session
-             * 
-             * @param sessionId - Session identifier to clear
-             * 
-             * @example
-             * ```typescript
-             * // Remove all session data when user logs out
-             * t.session.clear('sess_abc123');
-             * ```
-             */
+            /** Clear entire session. */
             clear(sessionId: string): void;
         }
 
@@ -806,36 +648,11 @@ declare global {
          * Cookie API - HTTP cookie parsing and setting
          */
         interface Cookies {
-            /**
-             * Parses and retrieves a cookie from request headers
-             * 
-             * @param req - Request object with headers
-             * @param name - Cookie name
-             * @returns Cookie value (URL-decoded) or null
-             * 
-             * @example
-             * ```typescript
-             * const sessionId = t.cookies.get(req, 'session_id');
-             * ```
-             */
+            /** Parse cookie from request headers. */
             get(req: any, name: string): string | null;
-
-            /**
-             * Sets a cookie in the response headers
-             * 
-             * @param res - Response object
-             * @param name - Cookie name
-             * @param value - Cookie value (will be URL-encoded)
-             * @param options - Cookie options (maxAge, path, httpOnly, etc.)
-             */
+            /** Set Set-Cookie header on response. Options: `{ httpOnly, secure, sameSite, path, maxAge }`. */
             set(res: any, name: string, value: string, options?: CookieOptions): void;
-
-            /**
-             * Deletes a cookie by setting maxAge=0
-             * 
-             * @param res - Response object
-             * @param name - Cookie name to delete
-             */
+            /** Delete cookie (expire). */
             delete(res: any, name: string): void;
         }
 
@@ -862,42 +679,44 @@ declare global {
          */
         interface ResponseModule {
             /**
-             * Creates a fully custom response
-             * @param options - Response configuration
+             * Construct a fully custom ResponseObject.
              */
             (options: ResponseOptions): ResponseObject;
 
             /**
-             * Creates a Plain Text response (Content-Type: text/plain)
-             * @param content - Text content
-             * @param options - Additional options
+             * Send plain UTF-8 text.
+             * Automatically sets `Content-Type: text/plain; charset=utf-8`.
+             * @param content Content to send.
+             * @param status HTTP status code.
              */
-            text(content: string, options?: ResponseOptions): ResponseObject;
+            text(content: string, status?: number): ResponseObject;
 
             /**
-             * Creates an HTML response (Content-Type: text/html)
-             * @param content - HTML content
-             * @param options - Additional options
+             * Send an HTML document.
+             * Automatically sets `Content-Type: text/html; charset=utf-8`.
+             * @param content HTML content.
+             * @param status HTTP status code.
              */
-            html(content: string, options?: ResponseOptions): ResponseObject;
+            html(content: string, status?: number): ResponseObject;
 
             /**
-             * Creates a JSON response (Content-Type: application/json)
-             * @param content - JSON serializable object
-             * @param options - Additional options
+             * Send JSON-encoded data from a JavaScript object.
+             * Automatically sets `Content-Type: application/json`.
+             * @param content JSON-serializable object.
+             * @param status HTTP status code.
              */
-            json(content: any, options?: ResponseOptions): ResponseObject;
+            json(content: any, status?: number): ResponseObject;
 
             /**
-             * Creates a Redirect response (301/302)
-             * @param url - URL to redirect to
-             * @param status - HTTP Status Code (default: 302)
+             * Create a Redirect response.
+             * @param url Target URL.
+             * @param status HTTP status (default: 302).
              */
             redirect(url: string, status?: number): ResponseObject;
 
             /**
-             * Creates an empty response (e.g., 204 No Content)
-             * @param status - HTTP Status Code (default: 204)
+             * Create an empty response.
+             * @param status HTTP status (default: 204).
              */
             empty(status?: number): ResponseObject;
         }
@@ -915,10 +734,10 @@ declare global {
         }
 
         /**
-         * Standardized Response Object for the Runtime
+         * Standardized Response Object consumed by the Titan Rust HTTP server.
          */
         interface ResponseObject {
-            _isResponse: true;
+            type: "response";
             status: number;
             headers: Record<string, string>;
             body: string;
