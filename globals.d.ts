@@ -569,19 +569,3 @@ declare namespace Titan {
         core: TitanCore.Core;
     }
 }
-
-/**
- * # Drift - Orchestration Engine
- *
- * Deterministic Replay-based Suspension model for high-performance async operations.
- *
- * @param promise - The promise or expression to drift.
- * @returns The resolved value of the input promise.
- *
- * @example
- * ```javascript
- * const resp = drift(t.fetch("http://api.titan.com"));
- * console.log(resp.body);
- * ```
- */
-declare function drift<T>(promise: Promise<T> | T): T;
