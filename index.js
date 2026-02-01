@@ -678,3 +678,31 @@ t["@titanpl/core"] = core;
 if (!t.exts) t.exts = {};
 t.exts["titan-core"] = core;
 t.exts["@titanpl/core"] = core;
+
+export {
+    // Modules
+    fs,
+    path,
+    crypto,
+    os,
+    net,
+    proc,
+    time,
+    url,
+    buffer,
+    ls,
+    session,
+    cookies,
+    response,
+
+    // Classes
+    TitanURLSearchParams,
+
+    // Utility functions
+    local_btoa,
+    local_atob,
+    local_utf8_encode,
+    local_utf8_decode,
+    hexToBytes,
+    bytesToHex
+};
