@@ -1,96 +1,35 @@
 // Type definitions for @titanpl/core
 // Project: https://github.com/titanpl/core
 // Definitions by: TitanPL Team
+//
+// This reference ensures global types (t.fs, t.response, etc.) are always
+// loaded when this package is imported OR included via tsconfig "types".
+/// <reference path="./global.d.ts" />
 
-declare global {
-    namespace Titan {
-        interface Runtime {
-            /**
-             * # @titanpl/core
-             * The official Core Standard Library for Titan Planet - a high-performance JavaScript runtime extension.
-             * 
-             * ## Overview
-             * `@titanpl/core` provides essential standard library modules for Titan applications, bridging high-performance Rust native implementations with an easy-to-use JavaScript API.
-             * 
-             * ## Usage
-             * The extension automatically attaches to the Titan runtime. You can access it via `t.core` or the `t` global object alias.
-             * 
-             * ```javascript
-             * // Access via t.core (Recommended)
-             * const { fs, crypto, os } = t.core;
-             * ```
-             */
-            "@titanpl/core": TitanCore.Core;
+// ==================== ESM Named Exports ====================
+// These match the `export { ... }` block in the JS implementation.
+// Usage: import { fs, crypto, path } from '@titanpl/core';
 
-            /**
-             * Alias for @titanpl/core
-             */
-            "titan-core": TitanCore.Core;
+/** File System module */
+export declare const fs: TitanCore.FileSystem;
 
-            /**
-             * ### `fs` (File System)
-             * Perform synchronous file system operations using high-performance native bindings.
-             * 
-             * @example
-             * ```javascript
-             * const content = t.fs.readFile("config.json");
-             * ```
-             */
-            fs: TitanCore.FileSystem;
+/** Path manipulation module */
+export declare const path: TitanCore.Path;
 
-            /**
-             * ### `path` (Path Manipulation)
-             * Utilities for handling file paths across different operating systems.
-             */
-            path: TitanCore.Path;
+/** Cryptography module */
+export declare const crypto: TitanCore.Crypto;
 
-            /**
-             * ### `crypto` (Cryptography)
-             * Cryptographic utilities using native Rust implementations.
-             * 
-             * @example
-             * ```javascript
-             * const hash = t.crypto.hash("sha256", "hii");
-             * ```
-             */
-            crypto: TitanCore.Crypto;
+/** Operating System module */
+export declare const os: TitanCore.OS;
 
-            /**
-            * Operating System API - Deep system introspection.
-            * 
-            * Access CPU counts, memory status, and platform-specific environment details.
-            * 
-            * @use Multi-threaded scaling, resource monitoring, and platform-aware logic.
-            */
-            os: TitanCore.OS;
+/** Network module */
+export declare const net: TitanCore.Net;
 
-            /**
-            * Network API - Low-level networking and DNS utilities.
-            * 
-            * Resolve hostnames and perform network health checks with sub-millisecond precision.
-            * 
-            * @use Discovering service IP addresses, verifying network connectivity.
-            */
-            net: TitanCore.Net;
+/** Process module */
+export declare const proc: TitanCore.Process;
 
-            /**
-            * Process API - Runtime execution control and monitoring.
-            * 
-            * Monitor the current Titan process, its PID, uptime, and memory heap footprint.
-            * 
-            * @use Health checks, performance profiling, and process identification.
-            */
-            proc: TitanCore.Process;
-
-            /**
-            * Time API - High-resolution timing and scheduling.
-            * 
-            * Precise timestamps and blocking delays for synchronized operations.
-            * 
-            * @use Benchmarking actions, adding retry delays, and generation of ISO timestamps.
-            * @suggestion Use `t.time.sleep` sparingly as it pauses the execution isolate.
-            */
-            time: TitanCore.Time;
+/** Time module */
+export declare const time: TitanCore.Time;
 
             /**
             * URL API - Robust URL parsing and construction.
@@ -103,14 +42,8 @@ declare global {
 
 
 
-            /**
-            * Buffer API - High-performance binary data handling.
-            * 
-            * Optimized for Base64 coding, Hex conversion, and UTF-8 byte stream management.
-            * 
-            * @use Handling file uploads, processing binary payloads, and hashing non-string data.
-            */
-            buffer: TitanCore.BufferModule;
+/** Buffer module */
+export declare const buffer: TitanCore.BufferModule;
 
             /**
             * Local Storage API - High-performance in-memory key-value store.
@@ -127,37 +60,14 @@ declare global {
             */
             ls: TitanCore.LocalStorage;
 
-            /**
-             * Alias for `t.ls` - Local Storage
-             */
-            localStorage: TitanCore.LocalStorage;
+/** Session module */
+export declare const session: TitanCore.Session;
 
-            /**
-            * Session API - High-performance session management.
-            * 
-            * Isolate data per-user session with sub-millisecond access times.
-            * 
-            * @use Shopping carts, user preferences, and authentication tokens.
-            * @suggestion Store JSON strings and parse them on retrieval for complex objects.
-            */
-            session: TitanCore.Session;
+/** Cookies module */
+export declare const cookies: TitanCore.Cookies;
 
-            /**
-            * Cookie API - Standard-compliant HTTP cookie management.
-            * 
-            * Easily set, retrieve, and delete cookies with support for HTTPOnly and SameSite.
-            * 
-            * @use Tracking user sessions, storing client-side preferences.
-            * @suggestion Always use `httpOnly: true` for sensitive session cookies.
-            */
-            cookies: TitanCore.Cookies;
-
-            /**
-            * ### **`response` (HTTP Response Builder)**
-            * Utilities for constructing HTTP responses.
-            * All response methods return a standardized ResponseObject consumed by the Titan Rust HTTP server.
-            */
-            response: TitanCore.ResponseModule;
+/** Response builder module */
+export declare const response: TitanCore.ResponseModule;
 
             /**
              * Core namespace - Unified access to all APIs
