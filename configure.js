@@ -40,7 +40,9 @@ try {
         titanConfig.native = {};
     }
 
-    titanConfig.native.path = relativeLibPath;
+    // Use Absolute Path for local dev to avoid path issues with 'titan run ext'
+    const absoluteLibPath = expectedBinary.replace(/\\/g, '/');
+    titanConfig.native.path = absoluteLibPath;
 
     writeFileSync(titanConfigPath, JSON.stringify(titanConfig, null, 2));
     console.log(`Updated titan.json to use native binary: ${relativeLibPath}`);

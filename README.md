@@ -78,6 +78,25 @@ Key-value storage persisted to disk (via Sled).
 - `ls.remove(key: string): void` - Remove key.
 - `ls.clear(): void` - Clear all storage.
 - `ls.keys(): string[]` - List all keys.
+- `ls.serialize(value: any): Uint8Array` - Serialize any JS value to V8 format (using native v8::ValueSerializer). Supports Maps, Sets, Dates, Uint8Arrays, and cyclical references.
+- `ls.deserialize(bytes: Uint8Array): any` - Deserialize V8-format bytes back to JS value.
+
+**Serialization Example:**
+```javascript
+const data = { 
+    date: new Date(),
+    map: new Map([['key', 'value']]),
+    buffer: new Uint8Array([1, 2, 3])
+};
+
+// Serialize complex objects to Uint8Array
+const bytes = t.ls.serialize(data);
+
+// Restore original object structure
+const restored = t.ls.deserialize(bytes);
+console.log(restored.map.get('key')); // 'value'
+console.log(restored.buffer instanceof Uint8Array); // true
+```
 
 ### `session` (Server-side Sessions)
 Session management backed by persistent storage.
@@ -106,12 +125,102 @@ Network utilities.
 - `net.ip(): string` - Get local IP address.
 
 ### `proc` (Process)
-Process management and system information.
-- `proc.pid(): number` - Process ID.
-- `proc.uptime(): number` - System uptime in seconds.
-- `proc.run(command: string, args?: string[]): { pid: number }` - Spawn a new process.
-- `proc.kill(pid: number): boolean` - Kill a process by PID.
-- `proc.list(): object[]` - List all running processes (`{ pid, name, cmd, memory, cpu }`).
+
+The `t.proc` module provides capabilities for interacting with the operating system processes, including retrieving system information, spawning new processes, and managing running tasks.
+
+#### `proc.run(command, args, cwd)`
+
+Spawns a new background process.
+
+- **command** `string`: The executable name or path to run.
+- **args** `string[]` (optional): An array of string arguments to pass to the executable. Default: `[]`.
+- **cwd** `string` (optional): The working directory for the process. 
+  - If absolute (e.g., `C:/App`), it is used as-is.
+  - If relative (e.g., `./data`), it is resolved relative to the Titan host process current directory.
+  - If omitted or empty, defaults to the current working directory.
+
+**Returns:**
+An object containing the process start status:
+```javascript
+{
+  "ok": true,       // "true" if the spawn call succeeded
+  "pid": 12345,     // The Process ID of the started process
+  "cwd": "C:\\..."  // The actual resolved working directory used
+}
+```
+
+**Example:**
+```javascript
+// Run a simple command
+t.proc.run("notepad.exe");
+
+// Run with arguments
+t.proc.run("git", ["status"]);
+
+// Run in a specific directory
+t.proc.run("npm", ["install"], "./my-project");
+```
+
+#### `proc.list()`
+
+Retrieves a list of currently running processes on the system.
+
+**Returns:**
+An array of process objects, where each object typically contains:
+- `pid` `number`: Process ID.
+- `name` `string`: Name of the executable (e.g., `node.exe`).
+- `cpu` `number`: CPU usage (platform dependent).
+- `memory` `number`: Memory usage in bytes.
+- `cmd` `string[]`: Command line arguments (if accessible).
+
+**Example:**
+```javascript
+const processes = t.proc.list();
+const nodeProcs = processes.filter(p => p.name === "node.exe");
+console.log(`Found ${nodeProcs.length} Node processes.`);
+```
+
+#### `proc.kill(pid)`
+
+Attempts to terminate a process by its Process ID (PID).
+
+- **pid** `number`: The ID of the process to kill.
+
+**Returns:**
+- `true` if the signal was sent successfully.
+- `false` if the operation failed (e.g., process not found or permission denied).
+
+**Example:**
+```javascript
+t.proc.kill(12345);
+```
+
+#### `proc.pid()`
+
+Returns the Process ID (PID) of the current Titan runtime instance.
+
+**Returns:** `number`
+
+**Example:**
+```javascript
+console.log("Current PID:", t.proc.pid());
+```
+
+#### `proc.uptime()`
+
+Returns the system uptime in seconds.
+
+**Returns:** `number`
+
+**Example:**
+```javascript
+const days = t.proc.uptime() / 86400;
+console.log(`System has been up for ${days.toFixed(1)} days.`);
+```
+
+#### `proc.memory()`
+
+*Currently returns an empty object `{}`. Placeholder for future implementation of memory usage stats.*
 
 ### `time` (Time)
 Time utilities.

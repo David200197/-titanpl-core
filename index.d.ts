@@ -101,6 +101,8 @@ declare global {
             */
             url: TitanCore.URLModule;
 
+
+
             /**
             * Buffer API - High-performance binary data handling.
             * 
@@ -419,6 +421,26 @@ declare global {
             uptime(): number;
             /** Memory usage statistics. */
             memory(): Record<string, any>;
+            /**
+             * Spawn a subprocess.
+             * @param command The executable to run.
+             * @param args Arguments to pass.
+             * @returns Object containing the PID of the spawned process, e.g. `{ pid: 1234 }`.
+             */
+            run(command: string, args: string[], cwd?: string): { ok: boolean, pid: number, cwd: string };
+
+            /**
+             * Kill a process by PID.
+             * @param pid Process ID to kill.
+             * @returns True if the signal was sent successfully.
+             */
+            kill(pid: number): boolean;
+
+            /**
+             * List running processes.
+             * @returns Array of process information objects.
+             */
+            list(): Array<{ pid: number, name: string, cmd: string, cpu?: number, memory?: number }>;
         }
 
         // ==================== Time ====================
@@ -601,6 +623,36 @@ declare global {
             clear(): void;
             /** List all keys. */
             keys(): string[];
+
+            /**
+             * Serialize a JavaScript value to a V8-compatible binary format.
+             * 
+             * **Features:**
+             * - Supports Map, Set, Date, RegExp, BigInt, TypedArray
+             * - Supports Circular references
+             * - ~50x faster than JSON.stringify
+             * 
+             * @param value The value to serialize.
+             */
+            serialize(value: any): Uint8Array;
+
+            /**
+             * Deserialize a V8-compatible binary format back to a JavaScript value.
+             * 
+             * @param bytes The binary data to deserialize.
+             */
+            deserialize(bytes: Uint8Array): any;
+
+            /**
+             * Register a class for hydration/serialization support.
+             */
+            register(ClassRef: Function, hydrateFn?: Function, typeName?: string): void;
+
+            /**
+             * Hydrate a custom object from data.
+             */
+            hydrate(typeName: string, data: object): any;
+
         }
 
         // ==================== Session ====================

@@ -8,6 +8,7 @@ use base64::{Engine as _, engine::general_purpose};
 // Force rebuild 2
 mod storage_impl;
 mod crypto_impl;
+mod v8_impl;
 
 // --- Helper Functions ---
 
@@ -282,20 +283,67 @@ pub extern "C" fn proc_info() -> *mut c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn proc_run(command: *const c_char, args_json: *const c_char) -> *mut c_char {
+pub extern "C" fn proc_run(
+    command: *const c_char,
+    options_json: *const c_char,
+) -> *mut c_char {
     let cmd = ptr_to_string(command);
-    let args_str = ptr_to_string(args_json);
+    let options_str = ptr_to_string(options_json);
+
+    let options: serde_json::Value = 
+        serde_json::from_str(&options_str).unwrap_or(serde_json::json!({}));
     
-    let args: Vec<String> = serde_json::from_str(&args_str).unwrap_or_default();
+    let args: Vec<String> = options["args"]
+        .as_array()
+        .map(|arr| arr.iter().map(|v| v.as_str().unwrap_or("").to_string()).collect())
+        .unwrap_or_default();
+        
+    let cwd_str = options["cwd"].as_str().unwrap_or("");
+
+    // Safe cwd resolution
+    let cwd_res = if cwd_str.is_empty() {
+        std::env::current_dir()
+    } else {
+        let p = std::path::Path::new(cwd_str);
+        if p.is_absolute() {
+            Ok(p.to_path_buf())
+        } else {
+            std::env::current_dir().map(|d| d.join(p))
+        }
+    };
+
+    let cwd = match cwd_res {
+        Ok(c) => c,
+        Err(e) => return string_to_ptr(format!("ERROR: Failed to resolve CWD: {}", e)),
+    };
+
+    // Prepare command
+    let mut command = std::process::Command::new(cmd);
+    command.args(args);
+    command.current_dir(&cwd);
     
-    match std::process::Command::new(cmd).args(args).spawn() {
+    // Detached background process
+    command.stdin(std::process::Stdio::null());
+    command.stdout(std::process::Stdio::null());
+    command.stderr(std::process::Stdio::null());
+
+    match command.spawn() {
         Ok(child) => {
-             let res = serde_json::json!({ "pid": child.id() });
-             string_to_ptr(res.to_string())
-        },
-        Err(e) => string_to_ptr(format!("ERROR: {}", e)),
+            let res = serde_json::json!({
+                "ok": true,
+                "pid": child.id(),
+                "cwd": cwd
+            });
+            string_to_ptr(res.to_string())
+        }
+        Err(e) => {
+            string_to_ptr(format!("ERROR: Spawn failed: {}", e))
+        }
     }
 }
+
+
+
 
 #[no_mangle]
 pub extern "C" fn proc_kill(pid: f64) -> bool {

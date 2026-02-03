@@ -373,6 +373,23 @@ const ls = {
         } catch (e) {
             return [];
         }
+    },
+
+    serialize: (value) => {
+        if (!natives.serialize) throw new Error("ls.serialize is not available in natives");
+        return natives.serialize(value);
+    },
+    deserialize: (bytes) => {
+        if (!natives.deserialize) throw new Error("ls.deserialize is not available in natives");
+        return natives.deserialize(bytes);
+    },
+    register: (ClassRef, hydrateFn, typeName) => {
+        if (!natives.register) throw new Error("ls.register is not available in natives");
+        return natives.register(ClassRef, hydrateFn, typeName);
+    },
+    hydrate: (typeName, data) => {
+        if (!natives.hydrate) throw new Error("ls.hydrate is not available in natives");
+        return natives.hydrate(typeName, data);
     }
 };
 
@@ -555,13 +572,22 @@ const proc = {
         return info.uptime;
     },
     memory: () => ({}),
-    run: (command, args = []) => {
+    run: (command, args = [], cwd) => {
         if (!native_proc_run) throw new Error("Native proc_run not found");
-        const res = native_proc_run(command, JSON.stringify(args));
+
+        const options = {
+            args: args,
+            cwd: cwd || ""
+        };
+
+        const res = native_proc_run(command, JSON.stringify(options));
+
         if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res);
         try {
             return JSON.parse(res);
-        } catch (e) { return {}; }
+        } catch (e) {
+            throw new Error(`Failed to parse process response: '${res}'`);
+        }
     },
     kill: (pid) => {
         if (!native_proc_kill) return false;
@@ -658,6 +684,7 @@ t.net = net;
 t.proc = proc;
 t.time = time;
 t.url = url;
+
 
 // New Global Modules
 t.buffer = buffer;
