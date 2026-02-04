@@ -1,302 +1,243 @@
-// Early initialization of t.core to prevent destructuring errors during load
-(function () {
-    const _t = (typeof t !== 'undefined' ? t : (typeof globalThis !== 'undefined' ? globalThis.t : null));
-    if (_t) {
-        if (!_t.core) _t.core = {};
-        // Placeholder for early access to modules to prevent destructuring failures
-        const modules = ['fs', 'path', 'crypto', 'os', 'net', 'proc', 'time', 'url', 'buffer', 'ls', 'session', 'cookies', 'response'];
-        modules.forEach(m => { if (!_t.core[m]) _t.core[m] = {}; });
+// Titan Core Extension JS Wrapper
+// This file wraps native functions and provides the higher-level Titan API
+
+const _global = (typeof t !== 'undefined' ? t : (typeof globalThis !== 'undefined' ? globalThis.t : (typeof window !== 'undefined' ? window.t : {})));
+
+// --- Native discovery ---
+function findNatives() {
+    const candidates = [
+        _global["@titanpl/core"],
+        _global.core,
+        _global,
+        globalThis
+    ];
+    for (const c of candidates) {
+        if (c && typeof c.fs_read_file === 'function' && !c.__isTitanWrapper) {
+            return c;
+        }
     }
-})();
+    return null;
+}
 
+const n = findNatives() || {};
+
+// CAPTURE NATIVES IMMEDIATELY to avoid recursion
+const _n_fs_read_file = n.fs_read_file;
+const _n_fs_write_file = n.fs_write_file;
+const _n_fs_readdir = n.fs_readdir;
+const _n_fs_mkdir = n.fs_mkdir;
+const _n_fs_exists = n.fs_exists;
+const _n_fs_stat = n.fs_stat;
+const _n_fs_remove = n.fs_remove;
+const _n_path_cwd = n.path_cwd;
+const _n_crypto_hash = n.crypto_hash;
+const _n_crypto_random_bytes = n.crypto_random_bytes;
+const _n_crypto_uuid = n.crypto_uuid;
+const _n_crypto_encrypt = n.crypto_encrypt;
+const _n_crypto_decrypt = n.crypto_decrypt;
+const _n_crypto_hash_keyed = n.crypto_hash_keyed;
+const _n_crypto_compare = n.crypto_compare;
+const _n_os_info = n.os_info;
+const _n_net_resolve = n.net_resolve;
+const _n_net_ip = n.net_ip;
+const _n_proc_info = n.proc_info;
+const _n_proc_run = n.proc_run;
+const _n_proc_kill = n.proc_kill;
+const _n_proc_list = n.proc_list;
+const _n_time_sleep = n.time_sleep;
+const _n_ls_get = n.ls_get;
+const _n_ls_set = n.ls_set;
+const _n_ls_remove = n.ls_remove;
+const _n_ls_clear = n.ls_clear;
+const _n_ls_keys = n.ls_keys;
+const _n_session_get = n.session_get;
+const _n_session_set = n.session_set;
+const _n_session_delete = n.session_delete;
+const _n_session_clear = n.session_clear;
+const _n_serialize = n.serialize;
+const _n_deserialize = n.deserialize;
+
+// --- Helpers ---
 const b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function local_btoa(input) {
+const local_btoa = (input) => {
     let str = String(input);
     let output = '';
-
     for (let i = 0; i < str.length; i += 3) {
         const char1 = str.charCodeAt(i);
         const char2 = str.charCodeAt(i + 1);
         const char3 = str.charCodeAt(i + 2);
-
         const enc1 = char1 >> 2;
         const enc2 = ((char1 & 3) << 4) | (char2 >> 4);
         let enc3 = ((char2 & 15) << 2) | (char3 >> 6);
         let enc4 = char3 & 63;
-
-        if (isNaN(char2)) {
-            enc3 = enc4 = 64;
-        } else if (isNaN(char3)) {
-            enc4 = 64;
-        }
-
-        output += b64chars.charAt(enc1) + b64chars.charAt(enc2) +
-            (enc3 === 64 ? '=' : b64chars.charAt(enc3)) +
-            (enc4 === 64 ? '=' : b64chars.charAt(enc4));
+        if (isNaN(char2)) enc3 = enc4 = 64;
+        else if (isNaN(char3)) enc4 = 64;
+        output += b64chars.charAt(enc1) + b64chars.charAt(enc2) + (enc3 === 64 ? '=' : b64chars.charAt(enc3)) + (enc4 === 64 ? '=' : b64chars.charAt(enc4));
     }
-
     return output;
-}
-
-function local_atob(input) {
+};
+const local_atob = (input) => {
     let str = String(input).replace(/[=]+$/, '');
     let output = '';
-
-    if (str.length % 4 === 1) {
-        throw new Error("'atob' failed: The string to be decoded is not correctly encoded.");
-    }
-
-    for (let bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
-        bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
+    if (str.length % 4 === 1) throw new Error("'atob' failed");
+    for (let bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
         buffer = b64chars.indexOf(buffer);
     }
-
     return output;
-}
-
-function local_utf8_encode(string) {
-    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(string);
-    // basic polyfill
-    let res = [];
-    for (let i = 0; i < string.length; i++) {
-        let c = string.charCodeAt(i);
-        if (c < 128) res.push(c);
-        else if (c < 2048) res.push((c >> 6) | 192, (c & 63) | 128);
-        else res.push((c >> 12) | 224, ((c >> 6) & 63) | 128, (c & 63) | 128);
-    }
-    return new Uint8Array(res);
-}
-
-function local_utf8_decode(buffer) {
-    if (typeof TextDecoder !== 'undefined') return new TextDecoder().decode(buffer);
-    return String.fromCharCode.apply(null, buffer);
-}
-
-function hexToBytes(hex) {
-    let bytes = [];
-    for (let c = 0; c < hex.length; c += 2)
-        bytes.push(parseInt(hex.substr(c, 2), 16));
-    return new Uint8Array(bytes);
-}
-
-function bytesToHex(bytes) {
-    let hex = [];
-    for (let i = 0; i < bytes.length; i++) {
-        let current = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
-        hex.push((current >>> 4).toString(16));
-        hex.push((current & 0xF).toString(16));
-    }
-    return hex.join("");
-}
-
-// Native bindings are loaded by the runtime into t["@titanpl/core"] or t.core
-const getT = () => {
-    if (typeof t !== 'undefined') return t;
-    if (typeof globalThis !== 'undefined' && globalThis.t) return globalThis.t;
-    return null;
 };
-const _t = getT();
-const natives = (_t && (_t["@titanpl/core"] || _t.core)) || {};
-
-// Native Function bindings
-const native_fs_read_file = natives.fs_read_file;
-const native_fs_write_file = natives.fs_write_file;
-const native_fs_readdir = natives.fs_readdir;
-const native_fs_mkdir = natives.fs_mkdir;
-const native_fs_exists = natives.fs_exists;
-const native_fs_stat = natives.fs_stat;
-const native_fs_remove = natives.fs_remove;
-const native_path_cwd = natives.path_cwd;
-
-const native_crypto_hash = natives.crypto_hash;
-const native_crypto_random_bytes = natives.crypto_random_bytes;
-const native_crypto_uuid = natives.crypto_uuid;
-const native_crypto_encrypt = natives.crypto_encrypt;
-const native_crypto_decrypt = natives.crypto_decrypt;
-const native_crypto_hash_keyed = natives.crypto_hash_keyed;
-const native_crypto_compare = natives.crypto_compare;
-
-const native_os_info = natives.os_info;
-const native_net_resolve = natives.net_resolve;
-const native_net_ip = natives.net_ip;
-const native_proc_info = natives.proc_info;
-const native_proc_run = natives.proc_run;
-const native_proc_kill = natives.proc_kill;
-const native_proc_list = natives.proc_list;
-const native_time_sleep = natives.time_sleep;
-
-const native_ls_get = natives.ls_get;
-const native_ls_set = natives.ls_set;
-const native_ls_remove = natives.ls_remove;
-const native_ls_clear = natives.ls_clear;
-const native_ls_keys = natives.ls_keys;
-
-const native_session_get = natives.session_get;
-const native_session_set = natives.session_set;
-const native_session_delete = natives.session_delete;
-const native_session_clear = natives.session_clear;
 
 // --- FS ---
-const fs = {
-    readFile: (path) => {
-        if (!native_fs_read_file) throw new Error("Native fs_read_file not found");
-        const res = native_fs_read_file(path);
-        if (res && res.startsWith("ERROR:")) throw new Error(res);
+export const fs = {
+    readFile: (p) => {
+        if (typeof _n_fs_read_file !== 'function') throw new Error("native fs_read_file not found");
+        const res = _n_fs_read_file(p);
+        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res);
         return res;
     },
-    writeFile: (path, content) => {
-        if (!native_fs_write_file) throw new Error("Native fs_write_file not found");
-        native_fs_write_file(path, content);
+    writeFile: (p, c) => _n_fs_write_file && _n_fs_write_file(p, c),
+    readdir: (p) => {
+        const res = _n_fs_readdir && _n_fs_readdir(p);
+        try { return JSON.parse(res || "[]"); } catch (e) { return []; }
     },
-    readdir: (path) => {
-        if (!native_fs_readdir) throw new Error("Native fs_readdir not found");
-        const res = native_fs_readdir(path);
-        try { return JSON.parse(res); } catch (e) { return []; }
+    mkdir: (p) => _n_fs_mkdir && _n_fs_mkdir(p),
+    exists: (p) => _n_fs_exists && _n_fs_exists(p),
+    stat: (p) => {
+        const res = _n_fs_stat && _n_fs_stat(p);
+        try { return JSON.parse(res || "{}"); } catch (e) { return {}; }
     },
-    mkdir: (path) => {
-        if (!native_fs_mkdir) throw new Error("Native fs_mkdir not found");
-        native_fs_mkdir(path);
-    },
-    exists: (path) => {
-        if (!native_fs_exists) throw new Error("Native fs_exists not found");
-        return native_fs_exists(path);
-    },
-    stat: (path) => {
-        if (!native_fs_stat) throw new Error("Native fs_stat not found");
-        const res = native_fs_stat(path);
-        try { return JSON.parse(res); } catch (e) { return {}; }
-    },
-    remove: (path) => {
-        if (!native_fs_remove) throw new Error("Native fs_remove not found");
-        native_fs_remove(path);
-    }
+    remove: (p) => _n_fs_remove && _n_fs_remove(p)
 };
 
 // --- Path ---
-const path = {
-    join: (...args) => {
-        return args
-            .map((part, i) => {
-                if (!part) return '';
-                let p = part.replace(/\\/g, '/');
-                if (i === 0) return p.trim().replace(/[\/]*$/g, '');
-                return p.trim().replace(/(^[\/]*|[\/]*$)/g, '');
-            })
-            .filter(x => x.length)
-            .join('/');
-    },
+export const path = {
+    join: (...args) => args.map((p, i) => {
+        if (!p) return '';
+        let s = String(p).replace(/\\/g, '/');
+        if (i === 0) return s.replace(/\/+$/, '');
+        return s.replace(/^\/+|\/+$/g, '');
+    }).filter(x => x).join('/'),
     resolve: (...args) => {
-        let resolved = '';
-        for (let arg of args) { resolved = path.join(resolved, arg); }
-        if (!resolved.startsWith('/')) {
-            const isWindowsAbs = /^[a-zA-Z]:\\/.test(resolved) || resolved.startsWith('\\');
-            if (!isWindowsAbs && native_path_cwd) {
-                const cwd = native_path_cwd();
-                if (cwd) resolved = path.join(cwd, resolved);
-            }
+        let r = path.join(...args);
+        if (!r.startsWith('/') && !/^[a-zA-Z]:/.test(r) && _n_path_cwd) {
+            r = path.join(_n_path_cwd(), r);
         }
-        return resolved;
+        return r;
     },
-    extname: (p) => {
-        const parts = p.split('.');
-        return parts.length > 1 && !p.startsWith('.') ? '.' + parts.pop() : '';
-    },
-    dirname: (p) => {
-        const parts = p.split('/');
-        parts.pop();
-        return parts.join('/') || '.';
-    },
-    basename: (p) => p.split('/').pop()
+    dirname: (p) => p.split('/').slice(0, -1).join('/') || '.',
+    basename: (p) => p.split('/').pop() || '',
+    extname: (p) => { const parts = p.split('.'); return parts.length > 1 ? '.' + parts.pop() : ''; }
 };
 
 // --- Crypto ---
-const crypto = {
-    hash: (algo, data) => native_crypto_hash ? native_crypto_hash(algo, data) : "",
-    randomBytes: (size) => native_crypto_random_bytes ? native_crypto_random_bytes(size) : "",
-    uuid: () => native_crypto_uuid ? native_crypto_uuid() : "",
-    base64: {
-        encode: (str) => local_btoa(str),
-        decode: (str) => local_atob(str),
-    },
-    encrypt: (algorithm, key, plaintext) => {
-        if (!native_crypto_encrypt) throw new Error("Native crypto_encrypt not found");
-        const res = native_crypto_encrypt(algorithm, JSON.stringify({ key, plaintext }));
-        if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
+export const crypto = {
+    hash: (a, d) => _n_crypto_hash ? _n_crypto_hash(a, d) : "",
+    randomBytes: (s) => _n_crypto_random_bytes ? _n_crypto_random_bytes(s) : "",
+    uuid: () => _n_crypto_uuid ? _n_crypto_uuid() : "",
+    encrypt: (a, k, p) => {
+        const res = _n_crypto_encrypt && _n_crypto_encrypt(a, JSON.stringify({ key: k, plaintext: p }));
+        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res.slice(6));
         return res;
     },
-    decrypt: (algorithm, key, ciphertext) => {
-        if (!native_crypto_decrypt) throw new Error("Native crypto_decrypt not found");
-        const res = native_crypto_decrypt(algorithm, JSON.stringify({ key, ciphertext }));
-        if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
+    decrypt: (a, k, c) => {
+        const res = _n_crypto_decrypt && _n_crypto_decrypt(a, JSON.stringify({ key: k, ciphertext: c }));
+        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res.slice(6));
         return res;
     },
-    hashKeyed: (algorithm, key, message) => {
-        if (!native_crypto_hash_keyed) throw new Error("Native crypto_hash_keyed not found");
-        const res = native_crypto_hash_keyed(algorithm, JSON.stringify({ key, message }));
-        if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
+    hashKeyed: (a, k, m) => {
+        const res = _n_crypto_hash_keyed && _n_crypto_hash_keyed(a, JSON.stringify({ key: k, message: m }));
+        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res.slice(6));
         return res;
     },
-    compare: (a, b) => {
-        if (native_crypto_compare) return native_crypto_compare(a, b);
-        if (a.length !== b.length) return false;
-        let mismatch = 0;
-        for (let i = 0; i < a.length; ++i) mismatch |= (a.charCodeAt(i) ^ b.charCodeAt(i));
-        return mismatch === 0;
-    }
+    compare: (a, b) => _n_crypto_compare ? _n_crypto_compare(a, b) : a === b
 };
 
 // --- Buffer ---
-const buffer = {
-    fromBase64: (str) => {
-        const binary = local_atob(str);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return bytes;
+export const buffer = {
+    fromBase64: (s) => {
+        const bin = local_atob(s);
+        const res = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) res[i] = bin.charCodeAt(i);
+        return res;
     },
-    toBase64: (bytes) => {
-        let binary = '';
-        if (typeof bytes === 'string') return local_btoa(bytes);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-        return local_btoa(binary);
-    },
-    fromHex: (str) => hexToBytes(str),
-    toHex: (bytes) => (typeof bytes === 'string') ? bytesToHex(local_utf8_encode(bytes)) : bytesToHex(bytes),
-    fromUtf8: (str) => local_utf8_encode(str),
-    toUtf8: (bytes) => local_utf8_decode(bytes)
+    toBase64: (b) => {
+        if (typeof b === 'string') return local_btoa(b);
+        let s = '';
+        const len = b.byteLength;
+        for (let i = 0; i < len; i++) s += String.fromCharCode(b[i]);
+        return local_btoa(s);
+    }
 };
 
-// --- Local Storage ---
-const ls = {
-    get: (key) => native_ls_get ? native_ls_get(key) : null,
-    set: (key, value) => native_ls_set && native_ls_set(key, String(value)),
-    remove: (key) => native_ls_remove && native_ls_remove(key),
-    clear: () => native_ls_clear && native_ls_clear(),
-    keys: () => {
-        if (!native_ls_keys) return [];
-        try { return JSON.parse(native_ls_keys()); } catch (e) { return []; }
+// --- OS ---
+export const os = {
+    info: () => { try { return JSON.parse(_n_os_info() || "{}"); } catch (e) { return {}; } },
+    platform: () => os.info().platform || "unknown",
+    cpus: () => os.info().cpus || 1,
+    totalMemory: () => os.info().totalMemory || 0,
+    freeMemory: () => os.info().freeMemory || 0,
+    tmpdir: () => os.info().tempDir || "/tmp"
+};
+
+// --- Net ---
+export const net = {
+    resolveDNS: (h) => {
+        const res = _n_net_resolve && _n_net_resolve(h);
+        try { return JSON.parse(res || "[]"); } catch (e) { return []; }
     },
-    setObject: (key, value) => ls.set(key, buffer.toBase64(ls.serialize(value))),
-    getObject: (key) => {
-        const b64 = ls.get(key);
+    ip: () => _n_net_ip ? _n_net_ip() : "127.0.0.1"
+};
+
+// --- Proc ---
+export const proc = {
+    info: () => { try { return JSON.parse(_n_proc_info() || "{}"); } catch (e) { return {}; } },
+    pid: () => proc.info().pid || 0,
+    run: (cmd, args = [], cwd = "") => {
+        const res = _n_proc_run && _n_proc_run(cmd, JSON.stringify({ args, cwd }));
+        try { return JSON.parse(res || "{}"); } catch (e) { throw new Error(res || "unknown error"); }
+    },
+    kill: (pid) => _n_proc_kill && _n_proc_kill(Number(pid)),
+    list: () => {
+        const res = _n_proc_list && _n_proc_list();
+        try { return JSON.parse(res || "[]"); } catch (e) { return []; }
+    }
+};
+
+// --- Time ---
+export const time = {
+    sleep: (ms) => _n_time_sleep && _n_time_sleep(Number(ms)),
+    now: () => Date.now()
+};
+
+// --- LS & V8 ---
+export const ls = {
+    get: (k) => _n_ls_get ? _n_ls_get(k) : null,
+    set: (k, v) => _n_ls_set && _n_ls_set(k, String(v)),
+    remove: (k) => _n_ls_remove && _n_ls_remove(k),
+    clear: () => _n_ls_clear && _n_ls_clear(),
+    keys: () => { try { return JSON.parse(_n_ls_keys() || "[]"); } catch (e) { return []; } },
+    serialize: (v) => _n_serialize ? _n_serialize(v) : null,
+    deserialize: (b) => _n_deserialize ? _n_deserialize(b) : null,
+    setObject: (k, v) => ls.set(k, buffer.toBase64(ls.serialize(v))),
+    getObject: (k) => {
+        const b64 = ls.get(k);
         if (!b64) return null;
         try { return ls.deserialize(buffer.fromBase64(b64)); } catch (e) { return null; }
-    },
-    serialize: (value) => natives.serialize ? natives.serialize(value) : null,
-    deserialize: (bytes) => natives.deserialize ? natives.deserialize(bytes) : null,
+    }
 };
 
-// --- Sessions ---
-const session = {
-    get: (sessionId, key) => native_session_get ? native_session_get(sessionId, key) : null,
-    set: (sessionId, key, value) => native_session_set && native_session_set(sessionId, key, String(value)),
-    delete: (sessionId, key) => native_session_delete && native_session_delete(sessionId, key),
-    clear: (sessionId) => native_session_clear && native_session_clear(sessionId)
+export const serialize = (v) => ls.serialize(v);
+export const deserialize = (b) => ls.deserialize(b);
+
+// --- Session ---
+export const session = {
+    get: (id, k) => _n_session_get ? _n_session_get(id, k) : null,
+    set: (id, k, v) => _n_session_set && _n_session_set(id, JSON.stringify({ key: k, value: String(v) })),
+    delete: (id, k) => _n_session_delete && _n_session_delete(id, k),
+    clear: (id) => _n_session_clear && _n_session_clear(id)
 };
 
 // --- Cookies ---
-const cookies = {
+export const cookies = {
     get: (req, name) => {
         if (!req || !req.headers || !req.headers.cookie) return null;
         const cookies = req.headers.cookie.split(';');
@@ -314,7 +255,6 @@ const cookies = {
         if (options.httpOnly) cookie += `; HttpOnly`;
         if (options.secure) cookie += `; Secure`;
         if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-        // Note: res.setHeader must be provided by t.response or the runtime
         if (res._isResponse) {
             if (!res.headers) res.headers = {};
             res.headers['Set-Cookie'] = cookie;
@@ -323,46 +263,11 @@ const cookies = {
 };
 
 // --- Response ---
-const response = (options) => ({
-    _isResponse: true, status: options.status || 200, headers: options.headers || {}, body: options.body || ""
-});
-response.text = (content, options = {}) => response({ ...options, headers: { "Content-Type": "text/plain", ...(options.headers || {}) }, body: content });
-response.html = (content, options = {}) => response({ ...options, headers: { "Content-Type": "text/html; charset=utf-8", ...(options.headers || {}) }, body: content });
-response.json = (content, options = {}) => response({ ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) }, body: JSON.stringify(content) });
-response.redirect = (url, status = 302) => response({ status, headers: { "Location": url }, body: "" });
-
-// --- OS ---
-const os = {
-    platform: () => native_os_info ? JSON.parse(native_os_info()).platform : "unknown",
-    cpus: () => native_os_info ? JSON.parse(native_os_info()).cpus : 1,
-};
-
-// --- Net ---
-const net = {
-    resolveDNS: (hostname) => native_net_resolve ? JSON.parse(native_net_resolve(hostname)) : [],
-    ip: () => native_net_ip ? native_net_ip() : "127.0.0.1",
-};
-
-// --- Proc ---
-const proc = {
-    pid: () => native_proc_info ? JSON.parse(native_proc_info()).pid : 0,
-    run: (command, args = [], cwd) => {
-        if (!native_proc_run) throw new Error("Native proc_run not found");
-        const res = native_proc_run(command, JSON.stringify({ args, cwd: cwd || "" }));
-        try { return JSON.parse(res); } catch (e) { throw new Error(`Process error: ${res}`); }
-    },
-    kill: (pid) => native_proc_kill ? native_proc_kill(pid) : false,
-    list: () => {
-        if (!native_proc_list) return [];
-        try { return JSON.parse(native_proc_list()); } catch (e) { return []; }
-    }
-};
-
-// --- Time ---
-const time = {
-    sleep: (ms) => native_time_sleep && native_time_sleep(ms),
-    now: () => Date.now(),
-};
+export const response = (opt) => ({ _isResponse: true, status: opt.status || 200, headers: opt.headers || {}, body: opt.body || "" });
+response.text = (c, o = {}) => response({ ...o, headers: { "Content-Type": "text/plain", ...(o.headers || {}) }, body: String(c) });
+response.json = (c, o = {}) => response({ ...o, headers: { "Content-Type": "application/json", ...(o.headers || {}) }, body: JSON.stringify(c) });
+response.html = (c, o = {}) => response({ ...o, headers: { "Content-Type": "text/html; charset=utf-8", ...(o.headers || {}) }, body: String(c) });
+response.redirect = (u, s = 302) => response({ status: s, headers: { "Location": u }, body: "" });
 
 // --- URL ---
 class TitanURLSearchParams {
@@ -380,35 +285,28 @@ class TitanURLSearchParams {
     set(key, value) { this._params[key] = String(value); }
     toString() { return Object.entries(this._params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&'); }
 }
-
-const url = {
-    parse: (str) => {
-        try { return new URL(str); } catch (e) { return { pathname: str }; }
-    },
+export const url = {
+    parse: (str) => { try { return new URL(str); } catch (e) { return { pathname: str }; } },
     SearchParams: TitanURLSearchParams
 };
 
 // --- Unified Core ---
-const core = { fs, path, crypto, os, net, proc, time, url, buffer, ls, session, cookies, response };
+export const core = {
+    fs, path, crypto, buffer, os, net, proc, time, ls, session, cookies, response, url,
+    serialize, deserialize,
+    __isTitanWrapper: true
+};
 
-if (_t) {
-    _t.core = core;
-    _t.fs = fs;
-    _t.path = path;
-    _t.crypto = crypto;
-    _t.os = os;
-    _t.net = net;
-    _t.proc = proc;
-    _t.time = time;
-    _t.url = url;
-    _t.buffer = buffer;
-    _t.ls = ls;
-    _t.session = session;
-    _t.cookies = cookies;
-    _t.response = response;
-    _t["@titanpl/core"] = core;
+// --- Global Attachment ---
+if (typeof t !== 'undefined' || typeof globalThis.t !== 'undefined') {
+    const target = (typeof t !== 'undefined' ? t : globalThis.t);
+    if (!target.core) target.core = {};
+    Object.assign(target.core, core);
+    if (target["@titanpl/core"]) Object.assign(target["@titanpl/core"], core);
+    else target["@titanpl/core"] = core;
+    Object.keys(core).forEach(k => {
+        if (!k.startsWith("__")) try { target[k] = core[k]; } catch (e) { }
+    });
 }
 
-export {
-    fs, path, crypto, os, net, proc, time, url, buffer, ls, session, cookies, response, core, TitanURLSearchParams
-};
+export default core;
