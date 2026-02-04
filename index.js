@@ -1,3 +1,14 @@
+// Early initialization of t.core to prevent destructuring errors during load
+(function () {
+    const _t = (typeof t !== 'undefined' ? t : (typeof globalThis !== 'undefined' ? globalThis.t : null));
+    if (_t) {
+        if (!_t.core) _t.core = {};
+        // Placeholder for early access to modules to prevent destructuring failures
+        const modules = ['fs', 'path', 'crypto', 'os', 'net', 'proc', 'time', 'url', 'buffer', 'ls', 'session', 'cookies', 'response'];
+        modules.forEach(m => { if (!_t.core[m]) _t.core[m] = {}; });
+    }
+})();
+
 const b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 function local_btoa(input) {
@@ -20,109 +31,73 @@ function local_btoa(input) {
             enc4 = 64;
         }
 
-        output += b64chars.charAt(enc1) + b64chars.charAt(enc2);
-        output += (enc3 === 64) ? '=' : b64chars.charAt(enc3);
-        output += (enc4 === 64) ? '=' : b64chars.charAt(enc4);
+        output += b64chars.charAt(enc1) + b64chars.charAt(enc2) +
+            (enc3 === 64 ? '=' : b64chars.charAt(enc3)) +
+            (enc4 === 64 ? '=' : b64chars.charAt(enc4));
     }
 
     return output;
 }
 
 function local_atob(input) {
-    // Remove whitespace and padding '='
-    let str = String(input).replace(/[\t\n\f\r =]/g, "");
+    let str = String(input).replace(/[=]+$/, '');
     let output = '';
 
-    for (let i = 0; i < str.length; i += 4) {
-        const c1Str = str.charAt(i);
-        const c2Str = str.charAt(i + 1);
-        const c3Str = str.charAt(i + 2);
-        const c4Str = str.charAt(i + 3);
+    if (str.length % 4 === 1) {
+        throw new Error("'atob' failed: The string to be decoded is not correctly encoded.");
+    }
 
-        const e1 = b64chars.indexOf(c1Str);
-        const e2 = c2Str ? b64chars.indexOf(c2Str) : -1;
-        const e3 = c3Str ? b64chars.indexOf(c3Str) : -1;
-        const e4 = c4Str ? b64chars.indexOf(c4Str) : -1;
-
-        // e1 and e2 are required
-        if (e1 < 0 || e2 < 0) continue;
-
-        // Shift and mask to reconstruct bytes
-        const c1 = (e1 << 2) | (e2 >> 4);
-        output += String.fromCharCode(c1);
-
-        if (e3 !== -1) {
-            const c2 = ((e2 & 15) << 4) | (e3 >> 2);
-            output += String.fromCharCode(c2);
-        }
-        if (e4 !== -1) {
-            const c3 = ((e3 & 3) << 6) | e4;
-            output += String.fromCharCode(c3);
-        }
+    for (let bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
+        bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
+        buffer = b64chars.indexOf(buffer);
     }
 
     return output;
 }
 
-function local_utf8_encode(str) {
-    let result = [];
-    for (let i = 0; i < str.length; i++) {
-        let c = str.charCodeAt(i);
-        if (c < 0x80) { result.push(c); }
-        else if (c < 0x800) {
-            result.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
-        }
-        else if (c < 0xd800 || c >= 0xe000) {
-            result.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
-        }
-        else {
-            i++;
-            c = 0x10000 + (((c & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
-            result.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 0x3f), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
-        }
+function local_utf8_encode(string) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(string);
+    // basic polyfill
+    let res = [];
+    for (let i = 0; i < string.length; i++) {
+        let c = string.charCodeAt(i);
+        if (c < 128) res.push(c);
+        else if (c < 2048) res.push((c >> 6) | 192, (c & 63) | 128);
+        else res.push((c >> 12) | 224, ((c >> 6) & 63) | 128, (c & 63) | 128);
     }
-    return new Uint8Array(result);
+    return new Uint8Array(res);
 }
 
-function local_utf8_decode(bytes) {
-    let str = "";
-    let i = 0;
-    while (i < bytes.length) {
-        let c = bytes[i++];
-        if (c > 127) {
-            if (c > 191 && c < 224) {
-                c = ((c & 31) << 6) | (bytes[i++] & 63);
-            } else if (c > 223 && c < 240) {
-                c = ((c & 15) << 12) | ((bytes[i++] & 63) << 6) | (bytes[i++] & 63);
-            } else if (c > 239 && c < 248) {
-                c = ((c & 7) << 18) | ((bytes[i++] & 63) << 12) | ((bytes[i++] & 63) << 6) | (bytes[i++] & 63);
-            }
-        }
-        if (c <= 0xffff) str += String.fromCharCode(c);
-        else if (c <= 0x10ffff) {
-            c -= 0x10000;
-            str += String.fromCharCode(c >> 10 | 0xd800) + String.fromCharCode(c & 0x3ff | 0xdc00);
-        }
-    }
-    return str;
+function local_utf8_decode(buffer) {
+    if (typeof TextDecoder !== 'undefined') return new TextDecoder().decode(buffer);
+    return String.fromCharCode.apply(null, buffer);
 }
 
+function hexToBytes(hex) {
+    let bytes = [];
+    for (let c = 0; c < hex.length; c += 2)
+        bytes.push(parseInt(hex.substr(c, 2), 16));
+    return new Uint8Array(bytes);
+}
 
-// Native bindings are loaded by the runtime into t["@titanpl/core"]
+function bytesToHex(bytes) {
+    let hex = [];
+    for (let i = 0; i < bytes.length; i++) {
+        let current = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
+        hex.push((current >>> 4).toString(16));
+        hex.push((current & 0xF).toString(16));
+    }
+    return hex.join("");
+}
+
+// Native bindings are loaded by the runtime into t["@titanpl/core"] or t.core
 const getT = () => {
     if (typeof t !== 'undefined') return t;
     if (typeof globalThis !== 'undefined' && globalThis.t) return globalThis.t;
     return null;
 };
 const _t = getT();
-if (!_t) {
-    console.warn("[TitanCore] 't' global not found during initialization.");
-}
-const natives = (_t && _t["@titanpl/core"]) || {};
-
-console.log("[TitanCore] Available natives:", Object.keys(natives));
-
-
+const natives = (_t && (_t["@titanpl/core"] || _t.core)) || {};
 
 // Native Function bindings
 const native_fs_read_file = natives.fs_read_file;
@@ -157,59 +132,41 @@ const native_ls_remove = natives.ls_remove;
 const native_ls_clear = natives.ls_clear;
 const native_ls_keys = natives.ls_keys;
 
-
-
 const native_session_get = natives.session_get;
 const native_session_set = natives.session_set;
 const native_session_delete = natives.session_delete;
 const native_session_clear = natives.session_clear;
 
 // --- FS ---
-/** File System module */
 const fs = {
-    /** Reads file content as UTF-8 string */
     readFile: (path) => {
         if (!native_fs_read_file) throw new Error("Native fs_read_file not found");
         const res = native_fs_read_file(path);
         if (res && res.startsWith("ERROR:")) throw new Error(res);
         return res;
     },
-    /** Writes content to file */
     writeFile: (path, content) => {
         if (!native_fs_write_file) throw new Error("Native fs_write_file not found");
         native_fs_write_file(path, content);
     },
-    /** Reads directory contents */
     readdir: (path) => {
         if (!native_fs_readdir) throw new Error("Native fs_readdir not found");
         const res = native_fs_readdir(path);
-        try {
-            return JSON.parse(res);
-        } catch (e) {
-            return [];
-        }
+        try { return JSON.parse(res); } catch (e) { return []; }
     },
-    /** Creates direction recursively */
     mkdir: (path) => {
         if (!native_fs_mkdir) throw new Error("Native fs_mkdir not found");
         native_fs_mkdir(path);
     },
-    /** Checks if path exists */
     exists: (path) => {
         if (!native_fs_exists) throw new Error("Native fs_exists not found");
         return native_fs_exists(path);
     },
-    /** Returns file stats */
     stat: (path) => {
         if (!native_fs_stat) throw new Error("Native fs_stat not found");
         const res = native_fs_stat(path);
-        try {
-            return JSON.parse(res);
-        } catch (e) {
-            return {};
-        }
+        try { return JSON.parse(res); } catch (e) { return {}; }
     },
-    /** Removes file or directory */
     remove: (path) => {
         if (!native_fs_remove) throw new Error("Native fs_remove not found");
         native_fs_remove(path);
@@ -217,7 +174,6 @@ const fs = {
 };
 
 // --- Path ---
-/** Path manipulation module */
 const path = {
     join: (...args) => {
         return args
@@ -232,16 +188,12 @@ const path = {
     },
     resolve: (...args) => {
         let resolved = '';
-        for (let arg of args) {
-            resolved = path.join(resolved, arg);
-        }
+        for (let arg of args) { resolved = path.join(resolved, arg); }
         if (!resolved.startsWith('/')) {
             const isWindowsAbs = /^[a-zA-Z]:\\/.test(resolved) || resolved.startsWith('\\');
             if (!isWindowsAbs && native_path_cwd) {
                 const cwd = native_path_cwd();
-                if (cwd) {
-                    resolved = path.join(cwd, resolved);
-                }
+                if (cwd) resolved = path.join(cwd, resolved);
             }
         }
         return resolved;
@@ -259,7 +211,6 @@ const path = {
 };
 
 // --- Crypto ---
-/** Cryptography module */
 const crypto = {
     hash: (algo, data) => native_crypto_hash ? native_crypto_hash(algo, data) : "",
     randomBytes: (size) => native_crypto_random_bytes ? native_crypto_random_bytes(size) : "",
@@ -268,373 +219,149 @@ const crypto = {
         encode: (str) => local_btoa(str),
         decode: (str) => local_atob(str),
     },
-    // Extended API
-    /** Encrypts data using AES-256-GCM. Returns Base64 string. */
     encrypt: (algorithm, key, plaintext) => {
         if (!native_crypto_encrypt) throw new Error("Native crypto_encrypt not found");
         const res = native_crypto_encrypt(algorithm, JSON.stringify({ key, plaintext }));
         if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
         return res;
     },
-    /** Decrypts data using AES-256-GCM. Returns plaintext string. */
     decrypt: (algorithm, key, ciphertext) => {
         if (!native_crypto_decrypt) throw new Error("Native crypto_decrypt not found");
         const res = native_crypto_decrypt(algorithm, JSON.stringify({ key, ciphertext }));
         if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
         return res;
     },
-    /** Computes HMAC-SHA256/512. Returns Hex string. */
     hashKeyed: (algorithm, key, message) => {
         if (!native_crypto_hash_keyed) throw new Error("Native crypto_hash_keyed not found");
         const res = native_crypto_hash_keyed(algorithm, JSON.stringify({ key, message }));
         if (res.startsWith("ERROR:")) throw new Error(res.substring(6));
         return res;
     },
-    /** Constant-time string comparison */
     compare: (a, b) => {
         if (native_crypto_compare) return native_crypto_compare(a, b);
-        // Fallback insecure
         if (a.length !== b.length) return false;
         let mismatch = 0;
-        for (let i = 0; i < a.length; ++i) {
-            mismatch |= (a.charCodeAt(i) ^ b.charCodeAt(i));
-        }
+        for (let i = 0; i < a.length; ++i) mismatch |= (a.charCodeAt(i) ^ b.charCodeAt(i));
         return mismatch === 0;
     }
 };
 
 // --- Buffer ---
-// Helper for hex
-function hexToBytes(hex) {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) {
-        bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
-    }
-    return bytes;
-}
-function bytesToHex(bytes) {
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** Buffer utility module */
 const buffer = {
-    /** Creates Uint8Array from Base64 string */
     fromBase64: (str) => {
         const binary = local_atob(str);
         const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         return bytes;
     },
-    /** encoded Uint8Array or String to Base64 string */
     toBase64: (bytes) => {
         let binary = '';
-        if (typeof bytes === 'string') {
-            return local_btoa(bytes);
-        }
-        // Uint8Array
+        if (typeof bytes === 'string') return local_btoa(bytes);
         const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
+        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
         return local_btoa(binary);
     },
-    /** Creates Uint8Array from Hex string */
     fromHex: (str) => hexToBytes(str),
-    /** Encodes bytes to Hex string */
-    toHex: (bytes) => {
-        if (typeof bytes === 'string') {
-            return bytesToHex(local_utf8_encode(bytes));
-        }
-        return bytesToHex(bytes);
-    },
-    /** Creates Uint8Array from UTF-8 string */
+    toHex: (bytes) => (typeof bytes === 'string') ? bytesToHex(local_utf8_encode(bytes)) : bytesToHex(bytes),
     fromUtf8: (str) => local_utf8_encode(str),
-    /** Decodes bytes to UTF-8 string */
     toUtf8: (bytes) => local_utf8_decode(bytes)
 };
 
 // --- Local Storage ---
-/** High-performance in-memory Local Storage (backed by native RwLock<HashMap>) */
 const ls = {
-    get: (key) => {
-        if (!native_ls_get) throw new Error("Native ls_get not found");
-        return native_ls_get(key);
-    },
-    set: (key, value) => {
-        if (!native_ls_set) throw new Error("Native ls_set not found");
-        native_ls_set(key, String(value));
-    },
-    remove: (key) => {
-        if (!native_ls_remove) throw new Error("Native ls_remove not found");
-        native_ls_remove(key);
-    },
-    clear: () => {
-        if (!native_ls_clear) throw new Error("Native ls_clear not found");
-        native_ls_clear();
-    },
+    get: (key) => native_ls_get ? native_ls_get(key) : null,
+    set: (key, value) => native_ls_set && native_ls_set(key, String(value)),
+    remove: (key) => native_ls_remove && native_ls_remove(key),
+    clear: () => native_ls_clear && native_ls_clear(),
     keys: () => {
-        if (!native_ls_keys) throw new Error("Native ls_keys not found");
-        const result = native_ls_keys();
-        try {
-            return JSON.parse(result);
-        } catch (e) {
-            return [];
-        }
+        if (!native_ls_keys) return [];
+        try { return JSON.parse(native_ls_keys()); } catch (e) { return []; }
     },
-
-    /** Stores a complex JavaScript object using V8 serialization and Base64 encoding. */
-    setObject: (key, value) => {
-        const bytes = ls.serialize(value);
-        ls.set(key, buffer.toBase64(bytes));
-    },
-    /** Retrieves and deserializes a complex JavaScript object. */
+    setObject: (key, value) => ls.set(key, buffer.toBase64(ls.serialize(value))),
     getObject: (key) => {
         const b64 = ls.get(key);
-        if (!b64 || b64.length === 0) return null;
-        try {
-            const bytes = buffer.fromBase64(b64);
-            return ls.deserialize(bytes);
-        } catch (e) {
-            return null;
-        }
+        if (!b64) return null;
+        try { return ls.deserialize(buffer.fromBase64(b64)); } catch (e) { return null; }
     },
-
-    serialize: (value) => {
-        if (!natives.serialize) throw new Error("ls.serialize is not available in natives");
-        return natives.serialize(value);
-    },
-    deserialize: (bytes) => {
-        if (!natives.deserialize) throw new Error("ls.deserialize is not available in natives");
-        return natives.deserialize(bytes);
-    },
-    register: (ClassRef, hydrateFn, typeName) => {
-        if (!natives.register) throw new Error("ls.register is not available in natives");
-        return natives.register(ClassRef, hydrateFn, typeName);
-    },
-    hydrate: (typeName, data) => {
-        if (!natives.hydrate) throw new Error("ls.hydrate is not available in natives");
-        return natives.hydrate(typeName, data);
-    }
+    serialize: (value) => natives.serialize ? natives.serialize(value) : null,
+    deserialize: (bytes) => natives.deserialize ? natives.deserialize(bytes) : null,
 };
 
 // --- Sessions ---
-/** High-performance in-memory Session Management (backed by native RwLock<HashMap>) */
 const session = {
-    get: (sessionId, key) => {
-        if (!native_session_get) throw new Error("Native session_get not found");
-        return native_session_get(sessionId, key);
-    },
-    set: (sessionId, key, value) => {
-        if (!native_session_set) throw new Error("Native session_set not found");
-        native_session_set(sessionId, key, String(value));
-    },
-    delete: (sessionId, key) => {
-        if (!native_session_delete) throw new Error("Native session_delete not found");
-        native_session_delete(sessionId, key);
-    },
-    clear: (sessionId) => {
-        if (!native_session_clear) throw new Error("Native session_clear not found");
-        native_session_clear(sessionId);
-    }
+    get: (sessionId, key) => native_session_get ? native_session_get(sessionId, key) : null,
+    set: (sessionId, key, value) => native_session_set && native_session_set(sessionId, key, String(value)),
+    delete: (sessionId, key) => native_session_delete && native_session_delete(sessionId, key),
+    clear: (sessionId) => native_session_clear && native_session_clear(sessionId)
 };
 
-
 // --- Cookies ---
-/** HTTP Cookie Utilities */
 const cookies = {
-    /** Parses cookie from request headers */
     get: (req, name) => {
-        if (!req || !req.headers) return null;
-        const cookieHeader = req.headers.cookie;
-        if (!cookieHeader) return null;
-        const cookies = cookieHeader.split(';');
+        if (!req || !req.headers || !req.headers.cookie) return null;
+        const cookies = req.headers.cookie.split(';');
         for (let c of cookies) {
             const [k, v] = c.trim().split('=');
             if (k === name) return decodeURIComponent(v);
         }
         return null;
     },
-    /** Sets Set-Cookie header on response */
     set: (res, name, value, options = {}) => {
-        if (!res || !res.setHeader) return;
+        if (!res) return;
         let cookie = `${name}=${encodeURIComponent(value)}`;
         if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
         if (options.path) cookie += `; Path=${options.path}`;
         if (options.httpOnly) cookie += `; HttpOnly`;
         if (options.secure) cookie += `; Secure`;
         if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-
-        let prev = res.getHeader ? res.getHeader('Set-Cookie') : null;
-        if (prev) {
-            if (Array.isArray(prev)) {
-                prev.push(cookie);
-                res.setHeader('Set-Cookie', prev);
-            } else {
-                res.setHeader('Set-Cookie', [prev, cookie]);
-            }
-        } else {
-            res.setHeader('Set-Cookie', cookie);
+        // Note: res.setHeader must be provided by t.response or the runtime
+        if (res._isResponse) {
+            if (!res.headers) res.headers = {};
+            res.headers['Set-Cookie'] = cookie;
         }
-    },
-    /** Deletes cookie by setting maxAge=0 */
-    delete: (res, name) => {
-        cookies.set(res, name, "", { maxAge: 0, path: '/' });
     }
 };
 
-
-
 // --- Response ---
-/** Advanced HTTP Response Management */
-const response = (options) => {
-    return {
-        _isResponse: true,
-        status: options.status || 200,
-        headers: options.headers || {},
-        body: options.body || ""
-    };
-};
-
-response.text = (content, options = {}) => {
-    return {
-        _isResponse: true,
-        status: options.status || 200,
-        headers: { "Content-Type": "text/plain", ...(options.headers || {}) },
-        body: content
-    };
-};
-
-response.html = (content, options = {}) => {
-    return {
-        _isResponse: true,
-        status: options.status || 200,
-        headers: { "Content-Type": "text/html; charset=utf-8", ...(options.headers || {}) },
-        body: content
-    };
-};
-
-response.json = (content, options = {}) => {
-    return {
-        _isResponse: true,
-        status: options.status || 200,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-        body: JSON.stringify(content)
-    };
-};
-
-response.redirect = (url, status = 302) => {
-    return {
-        _isResponse: true,
-        status: status,
-        headers: { "Location": url },
-        body: ""
-    };
-};
-
-response.empty = (status = 204) => {
-    return {
-        _isResponse: true,
-        status: status,
-        headers: {},
-        body: ""
-    };
-};
+const response = (options) => ({
+    _isResponse: true, status: options.status || 200, headers: options.headers || {}, body: options.body || ""
+});
+response.text = (content, options = {}) => response({ ...options, headers: { "Content-Type": "text/plain", ...(options.headers || {}) }, body: content });
+response.html = (content, options = {}) => response({ ...options, headers: { "Content-Type": "text/html; charset=utf-8", ...(options.headers || {}) }, body: content });
+response.json = (content, options = {}) => response({ ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) }, body: JSON.stringify(content) });
+response.redirect = (url, status = 302) => response({ status, headers: { "Location": url }, body: "" });
 
 // --- OS ---
 const os = {
-    platform: () => {
-        if (!native_os_info) return "unknown";
-        const info = JSON.parse(native_os_info());
-        return info.platform;
-    },
-    cpus: () => {
-        if (!native_os_info) return 1;
-        const info = JSON.parse(native_os_info());
-        return info.cpus;
-    },
-    totalMemory: () => {
-        if (!native_os_info) return 0;
-        const info = JSON.parse(native_os_info());
-        return info.totalMemory;
-    },
-    freeMemory: () => {
-        if (!native_os_info) return 0;
-        const info = JSON.parse(native_os_info());
-        return info.freeMemory;
-    },
-    tmpdir: () => {
-        if (!native_os_info) return '/tmp';
-        try {
-            const info = JSON.parse(native_os_info());
-            return info.tempDir || '/tmp';
-        } catch (e) {
-            return '/tmp';
-        }
-    }
+    platform: () => native_os_info ? JSON.parse(native_os_info()).platform : "unknown",
+    cpus: () => native_os_info ? JSON.parse(native_os_info()).cpus : 1,
 };
 
 // --- Net ---
 const net = {
-    resolveDNS: (hostname) => {
-        if (!native_net_resolve) return [];
-        return JSON.parse(native_net_resolve(hostname));
-    },
+    resolveDNS: (hostname) => native_net_resolve ? JSON.parse(native_net_resolve(hostname)) : [],
     ip: () => native_net_ip ? native_net_ip() : "127.0.0.1",
-    ping: (host) => true
 };
 
 // --- Proc ---
 const proc = {
-    pid: () => {
-        if (!native_proc_info) return 0;
-        const info = JSON.parse(native_proc_info());
-        return info.pid;
-    },
-    uptime: () => {
-        if (!native_proc_info) return 0;
-        const info = JSON.parse(native_proc_info());
-        return info.uptime;
-    },
-    memory: () => ({}),
+    pid: () => native_proc_info ? JSON.parse(native_proc_info()).pid : 0,
     run: (command, args = [], cwd) => {
         if (!native_proc_run) throw new Error("Native proc_run not found");
-
-        const options = {
-            args: args,
-            cwd: cwd || ""
-        };
-
-        const res = native_proc_run(command, JSON.stringify(options));
-
-        if (typeof res === 'string' && res.startsWith("ERROR:")) throw new Error(res);
-        try {
-            return JSON.parse(res);
-        } catch (e) {
-            throw new Error(`Failed to parse process response: '${res}'`);
-        }
+        const res = native_proc_run(command, JSON.stringify({ args, cwd: cwd || "" }));
+        try { return JSON.parse(res); } catch (e) { throw new Error(`Process error: ${res}`); }
     },
-    kill: (pid) => {
-        if (!native_proc_kill) return false;
-        return native_proc_kill(pid);
-    },
+    kill: (pid) => native_proc_kill ? native_proc_kill(pid) : false,
     list: () => {
         if (!native_proc_list) return [];
-        const res = native_proc_list();
-        try {
-            return JSON.parse(res);
-        } catch (e) { return []; }
+        try { return JSON.parse(native_proc_list()); } catch (e) { return []; }
     }
 };
 
 // --- Time ---
 const time = {
-    sleep: (ms) => {
-        if (native_time_sleep) native_time_sleep(ms);
-    },
+    sleep: (ms) => native_time_sleep && native_time_sleep(ms),
     now: () => Date.now(),
-    timestamp: () => new Date().toISOString()
 };
 
 // --- URL ---
@@ -647,62 +374,23 @@ class TitanURLSearchParams {
                 const [key, value] = pair.split('=').map(decodeURIComponent);
                 if (key) this._params[key] = value || '';
             });
-        } else if (typeof init === 'object') {
-            Object.assign(this._params, init);
         }
     }
     get(key) { return this._params[key] || null; }
     set(key, value) { this._params[key] = String(value); }
-    has(key) { return key in this._params; }
-    delete(key) { delete this._params[key]; }
-    toString() {
-        return Object.entries(this._params)
-            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-            .join('&');
-    }
-    entries() { return Object.entries(this._params); }
-    keys() { return Object.keys(this._params); }
-    values() { return Object.values(this._params); }
+    toString() { return Object.entries(this._params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&'); }
 }
 
 const url = {
     parse: (str) => {
-        if (typeof URL !== 'undefined') {
-            return new URL(str);
-        }
-        const match = str.match(/^(https?:)\/\/([^/:]+)(?::(\d+))?(\/[^?#]*)?(\?[^#]*)?(#.*)?$/);
-        if (!match) throw new Error('Invalid URL');
-        return {
-            protocol: match[1],
-            hostname: match[2],
-            port: match[3] || '',
-            pathname: match[4] || '/',
-            search: match[5] || '',
-            hash: match[6] || ''
-        };
+        try { return new URL(str); } catch (e) { return { pathname: str }; }
     },
-    format: (obj) => obj.toString ? obj.toString() : String(obj),
     SearchParams: TitanURLSearchParams
 };
 
-// Create the main core export object (following titan-valid pattern)
-const core = {
-    fs,
-    path,
-    crypto,
-    os,
-    net,
-    proc,
-    time,
-    url,
-    buffer, // t.core.buffer
-    ls,
-    session,
-    cookies,
-    response
-};
+// --- Unified Core ---
+const core = { fs, path, crypto, os, net, proc, time, url, buffer, ls, session, cookies, response };
 
-// Attach core as unified namespace (main access point)
 if (_t) {
     _t.core = core;
     _t.fs = fs;
@@ -715,46 +403,12 @@ if (_t) {
     _t.url = url;
     _t.buffer = buffer;
     _t.ls = ls;
-    _t.localStorage = ls;
     _t.session = session;
     _t.cookies = cookies;
     _t.response = response;
-
-    // Register as extension under multiple names for compatibility
-    _t["titan-core"] = core;
     _t["@titanpl/core"] = core;
-
-    // Also register in t.exts
-    if (!_t.exts) _t.exts = {};
-    _t.exts["titan-core"] = core;
-    _t.exts["@titanpl/core"] = core;
 }
 
 export {
-    // Modules
-    fs,
-    path,
-    crypto,
-    os,
-    net,
-    proc,
-    time,
-    url,
-    buffer,
-    ls,
-    session,
-    cookies,
-    response,
-    core,
-
-    // Classes
-    TitanURLSearchParams,
-
-    // Utility functions
-    local_btoa,
-    local_atob,
-    local_utf8_encode,
-    local_utf8_decode,
-    hexToBytes,
-    bytesToHex
+    fs, path, crypto, os, net, proc, time, url, buffer, ls, session, cookies, response, core, TitanURLSearchParams
 };
