@@ -10,12 +10,12 @@
  */
 
 // 1. Environment & Global Resolution
-const _G = (typeof globalThis !== 'undefined' 
-    ? globalThis 
-    : (typeof self !== 'undefined' 
-        ? self 
-        : (typeof global !== 'undefined' 
-            ? global 
+const _G = (typeof globalThis !== 'undefined'
+    ? globalThis
+    : (typeof self !== 'undefined'
+        ? self
+        : (typeof global !== 'undefined'
+            ? global
             : {})));
 
 let t;
@@ -58,7 +58,7 @@ const getNative = (name) => {
     if (t.native && typeof t.native[name] === 'function') {
         return t.native[name];
     }
-    
+
     if (typeof t[name] === 'function' && !t.__isTitanWrapper && !name.includes(".")) {
         return t[name];
     }
@@ -74,7 +74,7 @@ const _toB64 = (input) => {
     let chr1, chr2, chr3, enc1, enc2, enc3, enc4;
     let i = 0;
     const data = (typeof input === 'string') ? input : String.fromCharCode.apply(null, input);
-    
+
     while (i < data.length) {
         chr1 = data.charCodeAt(i++);
         chr2 = data.charCodeAt(i++);
@@ -83,12 +83,12 @@ const _toB64 = (input) => {
         enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
         enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
         enc4 = chr3 & 63;
-        
+
         if (isNaN(chr2)) enc3 = enc4 = 64;
         else if (isNaN(chr3)) enc4 = 64;
-        
-        output += _b64chars.charAt(enc1) + _b64chars.charAt(enc2) + 
-                  _b64chars.charAt(enc3) + _b64chars.charAt(enc4);
+
+        output += _b64chars.charAt(enc1) + _b64chars.charAt(enc2) +
+            _b64chars.charAt(enc3) + _b64chars.charAt(enc4);
     }
     return output;
 };
@@ -97,22 +97,22 @@ const _fromB64 = (input) => {
     let output = '';
     let i = 0;
     const data = String(input || "").replace(/[^A-Za-z0-9\+\/\=]/g, "");
-    
+
     while (i < data.length) {
         let enc1 = _b64chars.indexOf(data.charAt(i++));
         let enc2 = _b64chars.indexOf(data.charAt(i++));
         let enc3 = _b64chars.indexOf(data.charAt(i++));
         let enc4 = _b64chars.indexOf(data.charAt(i++));
-        
+
         let chr1 = (enc1 << 2) | (enc2 >> 4);
         let chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
         let chr3 = ((enc3 & 3) << 6) | enc4;
-        
+
         output += String.fromCharCode(chr1);
         if (enc3 !== 64) output += String.fromCharCode(chr2);
         if (enc4 !== 64) output += String.fromCharCode(chr3);
     }
-    
+
     const res = new Uint8Array(output.length);
     for (let j = 0; j < output.length; j++) {
         res[j] = output.charCodeAt(j);
@@ -138,10 +138,10 @@ const fs = {
     readdir: (p) => {
         const f = getNative("fs_readdir");
         if (!f) return [];
-        try { 
-            return JSON.parse(f(p)); 
-        } catch (e) { 
-            return []; 
+        try {
+            return JSON.parse(f(p));
+        } catch (e) {
+            return [];
         }
     },
     mkdir: (p) => {
@@ -156,10 +156,10 @@ const fs = {
     stat: (p) => {
         const f = getNative("fs_stat");
         if (!f) return {};
-        try { 
-            return JSON.parse(f(p)); 
-        } catch (e) { 
-            return {}; 
+        try {
+            return JSON.parse(f(p));
+        } catch (e) {
+            return {};
         }
     },
     remove: (p) => {
@@ -180,8 +180,8 @@ const path = {
     resolve: (...a) => {
         let r = path.join(...a);
         const f = getNative("path_cwd");
-        return (!r.startsWith('/') && !/^[a-zA-Z]:/.test(r) && f) 
-            ? path.join(f(), r) 
+        return (!r.startsWith('/') && !/^[a-zA-Z]:/.test(r) && f)
+            ? path.join(f(), r)
             : r;
     },
     dirname: (p) => {
@@ -256,10 +256,10 @@ const ls = {
     keys: () => {
         const f = getNative("ls_keys");
         if (!f) return [];
-        try { 
-            return JSON.parse(f()); 
-        } catch (e) { 
-            return []; 
+        try {
+            return JSON.parse(f());
+        } catch (e) {
+            return [];
         }
     },
     serialize: (v) => {
@@ -277,10 +277,10 @@ const ls = {
     getObject: (k) => {
         const b = ls.get(k);
         if (!b) return null;
-        try { 
-            return ls.deserialize(_fromB64(b)); 
-        } catch (e) { 
-            return null; 
+        try {
+            return ls.deserialize(_fromB64(b));
+        } catch (e) {
+            return null;
         }
     }
 };
@@ -294,10 +294,10 @@ const os = {
     info: () => {
         const f = getNative("os_info");
         if (!f) return {};
-        try { 
-            return JSON.parse(f()); 
-        } catch (e) { 
-            return {}; 
+        try {
+            return JSON.parse(f());
+        } catch (e) {
+            return {};
         }
     },
     platform: () => os.info().platform || "unknown",
@@ -311,10 +311,10 @@ const net = {
     resolveDNS: (h) => {
         const f = getNative("net_resolve");
         if (!f) return [];
-        try { 
-            return JSON.parse(f(h)); 
-        } catch (e) { 
-            return []; 
+        try {
+            return JSON.parse(f(h));
+        } catch (e) {
+            return [];
         }
     },
     ip: () => {
@@ -327,20 +327,20 @@ const proc = {
     info: () => {
         const f = getNative("proc_info");
         if (!f) return {};
-        try { 
-            return JSON.parse(f()); 
-        } catch (e) { 
-            return {}; 
+        try {
+            return JSON.parse(f());
+        } catch (e) {
+            return {};
         }
     },
     pid: () => proc.info().pid || 0,
     run: (c, a, d) => {
         const f = getNative("proc_run");
         if (!f) return {};
-        try { 
-            return JSON.parse(f(JSON.stringify({ cmd: c, args: a || [], cwd: d || "" }))); 
-        } catch (e) { 
-            return {}; 
+        try {
+            return JSON.parse(f(JSON.stringify({ cmd: c, args: a || [], cwd: d || "" })));
+        } catch (e) {
+            return {};
         }
     },
     kill: (p) => {
@@ -350,10 +350,10 @@ const proc = {
     list: () => {
         const f = getNative("proc_list");
         if (!f) return [];
-        try { 
-            return JSON.parse(f()); 
-        } catch (e) { 
-            return []; 
+        try {
+            return JSON.parse(f());
+        } catch (e) {
+            return [];
         }
     }
 };
@@ -394,14 +394,14 @@ const cookies = {
     set: (res, name, value, options = {}) => {
         if (!res) return;
         res.headers = res.headers || {};
-        
+
         let cookie = `${name}=${value}`;
         if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
         if (options.path) cookie += `; Path=${options.path}`;
         if (options.httpOnly) cookie += `; HttpOnly`;
         if (options.secure) cookie += `; Secure`;
         if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-        
+
         if (res.headers['Set-Cookie']) {
             if (Array.isArray(res.headers['Set-Cookie'])) {
                 res.headers['Set-Cookie'].push(cookie);
@@ -422,8 +422,8 @@ const url = {
             return null;
         }
     },
-    SearchParams: (typeof URLSearchParams !== 'undefined' 
-        ? URLSearchParams 
+    SearchParams: (typeof URLSearchParams !== 'undefined'
+        ? URLSearchParams
         : class {
             constructor(i) { this.q = i || ""; }
             toString() { return String(this.q); }
@@ -479,34 +479,14 @@ const API = {
 
 // 4. Global Attachment (Side Effects)
 try {
-    if (t.log && typeof t.log === 'function') {
-        t.log(EXT_KEY, "Extension loading...");
-    }
-
     // A. Inherit into t[@titanpl/core]
-    Object.keys(API).forEach(key => {
-        if (t[EXT_KEY][key] === API[key]) return;
-
-        try {
-            Reflect.defineProperty(t[EXT_KEY], key, {
-                value: API[key],
-                writable: true,
-                enumerable: true,
-                configurable: true
-            });
-        } catch (e) {
-            try { 
-                t[EXT_KEY][key] = API[key]; 
-            } catch (e2) { /* Silent */ }
-        }
-    });
-
-    // Prototype Injection (Fallback)
-    try {
-        if (Object.getPrototypeOf(t[EXT_KEY]) !== API) {
-            Object.setPrototypeOf(t[EXT_KEY], API);
-        }
-    } catch (e) { /* Silent */ }
+    // We merge API into the existing native object (or create it)
+    // This preserves native functions like fs_read_file whilst adding the JS wrappers
+    if (t[EXT_KEY]) {
+        Object.assign(t[EXT_KEY], API);
+    } else {
+        t[EXT_KEY] = API;
+    }
 
     // B. Attach to t.core
     Object.assign(t.core, API);
@@ -519,8 +499,8 @@ try {
             // Merging behavior: If t[key] exists and is an object, merge. Else overwrite.
             if (t[key] && typeof t[key] === 'object' && typeof API[key] === 'object') {
                 Object.assign(t[key], API[key]);
-            } else if (!(key in t) || t[key] === undefined) {
-                // Only assign if it doesn't exist or is undefined
+            } else {
+                // Otherwise (undefined, null, primitive, or existing but incompatible), overwrite it.
                 t[key] = API[key];
             }
         } catch (e) {
@@ -534,10 +514,6 @@ try {
             } catch (e2) { /* Silent */ }
         }
     });
-
-    if (t.log && typeof t.log === 'function') {
-        t.log(EXT_KEY, "Extension loaded successfully");
-    }
 } catch (e) {
     // Silent in restrictive environments
     // but allow ESM exports to work
@@ -547,8 +523,6 @@ try {
 export { fs, path, crypto, ls, buffer, os, net, proc, time, session, cookies, url, response };
 export const core = API;
 
-// Export the runtime for direct access if needed
-export { t as runtime };
 
 // Default export
 export default API;

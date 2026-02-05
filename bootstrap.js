@@ -17,10 +17,7 @@
     const t = _G.t;
     const EXT_KEY = "@titanpl/core";
 
-    // 2. Lifecycle Log
-    if (t.log) t.log(EXT_KEY, "Extension loading...");
-
-    // 3. Native Helpers
+    // 2. Native Helpers
     // The Runtime injects native bindings directly into t[EXT_KEY] before this script runs.
     // We must enable a lookup that finds them there.
     const getNative = (name) => {
@@ -157,7 +154,11 @@
 
     // A. Inject into the Extension Namespace (Preserving existing Natives!)
     // This effectively "upgrades" the native object with high-level JS wrappers.
-    t[EXT_KEY] = Object.assign(t[EXT_KEY] || {}, API);
+    if (t[EXT_KEY]) {
+        Object.assign(t[EXT_KEY], API);
+    } else {
+        t[EXT_KEY] = API;
+    }
 
     // B. Inject into t.core (Standard Library container)
     // We create t.core if it doesn't exist, and merge our API into it.
@@ -178,15 +179,10 @@
             Object.assign(t[key], val);
         } else {
             // Otherwise, we define it.
-            // Use defineProperty to ensure it's writable/configurable if possible
-            try { t[key] = val; }
-            catch (e) {
-                try { Object.defineProperty(t, key, { value: val, writable: true, configurable: true, enumerable: true }); } catch (i) { }
-            }
+            t[key] = val;
         }
     });
 
-    // 8. Final Log
-    if (t.log) t.log(EXT_KEY, "Extension loaded!");
+
 
 })();
