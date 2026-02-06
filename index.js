@@ -645,7 +645,7 @@ const url = {
 };
 
 // Create the main core export object (following titan-valid pattern)
-export const core = {
+const core = {
     fs,
     path,
     crypto,
